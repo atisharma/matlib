@@ -17,8 +17,13 @@ system identification, control theory and optimisation tools.
 Why not core.matrix? It is of course subjective. The philosophy of core.matrix
 and Neanderthal is different and they serve different needs. I preferred being
 close to LAPACK -- the cockroach of numerical computing -- and Neanderthal's
-syntax made more sense to me. If it's possible to use well-tested FORTRAN
-libraries for numerical computing, I will.
+syntax made more sense to me.
+
+
+## Installing
+
+TBD
+
 
 ## Contributing
 
@@ -26,7 +31,7 @@ Pull requests and bug reports are welcome.
 
 The code is written in a style that is meant to read like the mathematics where
 possible. This leads to extensive use of `let`, which may not be pretty
-Clojure, but is easier to relate back to papers describing the mathematics.
+Clojure, but is easier to relate back to papers describing the methods.
 
 
 ### Finished
