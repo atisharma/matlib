@@ -12,11 +12,10 @@
 
   The noise terms `w(k)` and `v(k)` are unobserved, Gaussian distributed,
   zero-mean, non-zero white noise, with covariances  
-  `E ( w_k w_l' ) = Q  δ_kl >= 0`  
-  `E ( w_k v_l' ) = S  δ_kl >= 0`  
-  `E ( v_k w_l' ) = S' δ_kl >= 0`  
-  `E ( v_k v_l' ) = R  δ_kl >= 0`  
-
+  `ℰ ( w_k w_l' ) = Q  δ_kl >= 0`  
+  `ℰ ( w_k v_l' ) = S  δ_kl >= 0`  
+  `ℰ ( v_k w_l' ) = S' δ_kl >= 0`  
+  `ℰ ( v_k v_l' ) = R  δ_kl >= 0`  
 
   A continuous-time state-space system is a set of matrices `A`, `B`, `C`, `D`
   which can be integrated as:
@@ -31,48 +30,57 @@
   Internally, discrete-time state-space systems are stored as maps,
   `{:A A :B B :C C :D D}`,  
   optionally with  
-  `{:x x(k) :u u(k) :y y(k) :x+ x(k+1)}`  
+  `{:x x(k), :u u(k), :y y(k), :x+ x(k+1)}`  
   and optionally with `{:E E}`.  
-  If `E` is supplied, `w` is generated as  
-  `w(k) = E n(k)`  
-  with `n(k)` drawn from the N(0,1) distribution.
+  If `E` is supplied, `w(k)` and `v(k)` are generated with covariance matrix  
+  `[ Q  S ] = E'E`  
+  `[ S' R ]`  
+  so that
+  `( w(k) ) = E n(k)`  
+  `( v(k) )`  
+  with `n(k)` serially uncorrelated and drawn from `N(0,1)`.
+
+  The snapshot matrix of inputs `{u(k)}` is stored under `:U`.
+  Once the system is integrated using `make-snapshots`, snapshot matrix `Y`
+  will be added to the map.
   "
   (:require
     [matlib.core :refer [eye col-vector]]
     [matlib.linalg :refer [minv]]
     [uncomplicate.neanderthal
      [native :refer [dge]]
-     [vect-math]
-     [linalg]
+     [vect-math :as vect-math]
      [random :refer [rand-normal!]]
      [core :refer [dim scal! copy copy! transfer! mm axpy axpy! axpby! ncols mrows col row trans submatrix entry]]]))
 
 (defn step-discrete-time
-  "Integrate a discrete-time system one step.
+  "Integrate a discrete-time system one step, by calculating  
+  `x+ = Ax + Bu + w`  
+  ` y = Cx + Du + v`  
   `x` is the state vector (a column vector).
   Argument `u` is u(k)."
   ([ss u]
    (let [x  (get ss :x+ (:x ss))
-         e  (rand-normal! (dge (mrows (:C ss)) 1))
          y  (axpy
              1 (mm (:C ss) x)
-             1 (mm (:D ss) (col-vector u)) 
-             1 e) 
+             1 (mm (:D ss) (col-vector u))) 
          x+ (axpy
              1 (mm (:A ss) x)
-             1 (mm (:B ss) (col-vector u))
-             1 (mm (:K ss) e))]
+             1 (mm (:B ss) (col-vector u)))]
     (merge ss
      {:k  (inc (get ss :k -1))
       :x  x
       :x+ x+
       :y  y
-      :e  e
       :u  (col-vector u)}
-     (if (:K ss)
-      {:x+ (axpy
-             1 x+
-             1 (mm (:K ss) e))}
+     (if (:E ss)
+       (let [n  (mm (:E ss) (rand-normal! (dge (ncols (:E ss)) 1)))
+             w  (submatrix n (dim x) 1)
+             v  (submatrix n (dim x) 0 (dim y) 1)]
+         {:x+ (axpy x+ w)
+          :y  (axpy y  v)
+          :v  v
+          :w  w})
       {})))))
 
 (defn make-snapshots
@@ -84,11 +92,15 @@
      (not (:U ss)) :input-snapshots-missing
      (not (:Y ss)) (recur (merge ss {:Y (dge (mrows (:C ss)) (ncols (:U ss)))}))
      (not (:X ss)) (recur (merge ss {:X (dge (mrows (:A ss)) (ncols (:U ss)))}))
+     (not (:W ss)) (recur (merge ss {:W (dge (mrows (:A ss)) (ncols (:U ss)))}))
+     (not (:V ss)) (recur (merge ss {:V (dge (mrows (:C ss)) (ncols (:U ss)))}))
      (not (:k ss)) (recur (step-discrete-time ss (col (:U ss) 0)))
      (< (:k ss) (ncols (:U ss))) (let [ss+ (step-discrete-time ss (col (:U ss) (:k ss)))]
                                    ; side effects on X, Y
                                    (copy! (:x ss) (submatrix (:X ss) 0 (:k ss) (mrows (:A ss)) 1))
+                                   (copy! (:w ss) (submatrix (:W ss) 0 (:k ss) (mrows (:A ss)) 1))
                                    (copy! (:y ss) (submatrix (:Y ss) 0 (:k ss) (mrows (:C ss)) 1))
+                                   (copy! (:v ss) (submatrix (:V ss) 0 (:k ss) (mrows (:C ss)) 1))
                                    (recur ss+))
      :else ss)))
 
@@ -118,7 +130,7 @@
                :B (dge 2 2 [1 2, 0 1])
                :C (dge 1 2 [1 1, 0 1])
                :D (dge 1 2 [0 0, 0 0])
-               :K (scal! 0.005 (dge 2 1 [1 0, 0 1]))
+               :E (scal! 0.005 (dge 3 2 (range)))
                :x (dge 2 1 [0 0])
                ; need a better input:
                ; - persistently exciting
