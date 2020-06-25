@@ -65,7 +65,6 @@
    [matlib.core :refer [dge-eye vcat hcat take-rows take-cols]]
    [matlib.control :refer [obsv]]
    [matlib.linalg :refer [rsp rsp-perp oblique-rsp pinv rsvd condition]]
-   [data.plot :as plot]
    [uncomplicate.neanderthal
     [core :refer [mm mm! transfer! copy! scal! axpy ncols mrows trans dia view-tr view-vctr view-ge subvector submatrix]]
     [vect-math :refer [sqrt inv]]

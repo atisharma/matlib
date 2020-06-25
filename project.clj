@@ -17,7 +17,6 @@
   ; jvm-opts required by Neanderthal on JDK > 8.
   :jvm-opts ^:replace ["--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"]
   :dependencies [[org.clojure/clojure "1.10.1"]
-                 [agalmic/data "0.7.8"]
                  [uncomplicate/neanderthal "0.31.0"]]
                  ; No need to specify slf4j-api, as it’s required by logback.
                  ; These loggers are there mainly to keep Neanderthal quiet.
