@@ -124,11 +124,6 @@
   [M]
   :not-implemented)
 
-(defn schur
-  "Schur form of matrix `M`."
-  [M]
-  :not-implemented)
-
 (defn trace
   "Trace of `M`."
   [M]
