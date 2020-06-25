@@ -37,7 +37,9 @@ Clojure, but is easier to relate back to papers describing the methods.
 ### Finished
 
 - SVD-based linear algebra functions like pseudo-inverse, subspace projections etc.
-- N4SID second algorithm
+- L-BFGS and gradient descent
+- N4SID second algorithm (biased)
+- N4SID, MOESP A, C matrices
 - Basis state-space representation, discrete-time integration
 - Some convenience functions
 
@@ -45,11 +47,11 @@ Clojure, but is easier to relate back to papers describing the methods.
 ### Unfinished
 
 - There are currently no tests
-- Schur decomposition, Kroneker product
+- Kroneker product
+- N4SID, MOESP B and D matrices
 - Other system ID algorithms
 - Continuous-time state space integration
 - Control theory tools such as a Riccati equation solver, Lyapunov solver
-- optimisers such as an L-BFGS implementation
 - Saving and loading of matrices
 - Complex matrices (lacking in Neanderthal)
 
