@@ -18,11 +18,11 @@
   :jvm-opts ^:replace ["--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"]
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [agalmic/data "0.7.8"]
-                 [uncomplicate/neanderthal "0.31.0"]
+                 [uncomplicate/neanderthal "0.31.0"]]
                  ; No need to specify slf4j-api, as it’s required by logback.
                  ; These loggers are there mainly to keep Neanderthal quiet.
-                 [org.clojure/tools.logging "0.6.0"]
-                 [ch.qos.logback/logback-classic "1.2.3"]]
+                 ;[org.clojure/tools.logging "0.6.0"]
+                 ;[ch.qos.logback/logback-classic "1.2.3"]]
   ; lein with-env-vars repl
   ; Is this working? Specified in $PATH in .bashrc.
   :env-vars {:LD_LIBRARY_PATH "/opt/intel/mkl/lib:/opt/intel/lib:/opt/intel/mkl/lib/intel64:/opt/intel/mkl/lib/intel64_lin"}

@@ -3,7 +3,7 @@
   (:require
    [uncomplicate.neanderthal
     [native :refer [dge dgd native-double]]
-    [core :refer [alter! entry entry! copy copy! scal! dim vctr vctr? view-vctr mm axpy ncols mrows trans submatrix]]]))
+    [core :refer [alter! entry entry! copy copy! transfer! scal! dim vctr vctr? view-vctr mm axpy col ncols mrows trans submatrix]]]))
 
 (defn machine-epsilon
   "Approximate machine epsilon."
@@ -39,9 +39,14 @@
    (dge m n (repeat (double 1)))))
 
 (defn eye
-  "Identity matrix."
+  "Identity matrix (diagonal type)."
   [n]
   (dgd n (repeat 1)))
+
+(defn dge-eye
+  "Full dge identity matrix."
+  [n]
+  (transfer! (dgd n (repeat 1)) (dge n n)))
 
 (defn sign
   "Sign of each element in a matrix or vector."
@@ -188,6 +193,21 @@
    (submatrix M 0 0 (- (mrows M) n) (ncols M))))
 
 (defn col-diff
-  "Elements are the diff of M from its previous column."
+  "Elements are the diff of M from its previous column, with a fake column of
+  zeros implied on the left."
   [M]
   (axpy -1.0 (hcat (dge (mrows M) 1) (take-cols M (- (ncols M) 1))) M))
+
+(defn shift-update
+  "Add a new column `m` to the end of a matrix `M` and discard the first column.
+  Done in-place."
+  [M m]
+  (let [rows (mrows M)
+        cols (ncols M)
+        M-back (submatrix M 0 1 rows (- cols 1))
+        M-front (submatrix M rows (- cols 1))
+        m-col (dge rows 1 m)]
+    (copy! M-back M-front)
+    ((copy! m (submatrix M 0 (- cols 1) rows 1)))
+    M))
+

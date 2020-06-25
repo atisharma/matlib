@@ -3,7 +3,7 @@
   (:require
    [matlib.core :refer [eps sq-eps]]
    [uncomplicate.neanderthal
-    [core :refer [transfer! copy! scal! axpy entry nrm2 sum mm dia dim ncols mrows trans view-vctr subvector submatrix]]
+    [core :refer [transfer! copy! scal! copy axpy entry nrm2 sum mm dia dim ncols mrows trans view-vctr subvector submatrix]]
     [vect-math :refer [sqrt inv mul]]
     [native :refer [dgd dge]]
     [linalg :refer :all]]))
@@ -14,22 +14,35 @@
   (tri! (trf M)))
 
 (defn rsvd
-  "The reduced SVD."
+  "The reduced SVD of `M`,  
+  `M = [ U₁ | U₂ ] [ Σ₁ | 0  ] [ V₁' ]`  
+  `                [ 0  | Σ₂ ] [ V₂' ]`  
+  where the leading subspace is given with `u, vt, sigma` and similarly with 
+  subscript `2` as `u_perp` etc."
   ([M & options]
    (let [{:keys [tol rank] :or {tol sq-eps, rank nil}} options
          {:keys [u vt sigma]} (svd M true true)
          r (if rank
              rank
              (count (take-while #(> % tol) (lazy-seq (dia sigma)))))
+         p (- (min (mrows M) (ncols M)) r)
          sigma_r (transfer!
                    (subvector (view-vctr sigma) 0 r)
                    (dgd r))
+         sigma_perp (transfer!
+                      (subvector (view-vctr sigma) r p)
+                      (dgd p))
          vt_r (submatrix vt r (ncols vt))
-         u_r (submatrix u (mrows u) r)]
+         u_r (submatrix u (mrows u) r)
+         vt_perp (submatrix vt r 0 (- (mrows vt) r) (ncols vt))
+         u_perp (submatrix u 0 r (mrows u) (- (ncols u) r))]
      {:master true
       :sigma sigma_r
       :u u_r
-      :vt vt_r})))
+      :vt vt_r
+      :u_perp u_perp
+      :vt_perp vt_perp
+      :sigma_perp sigma_perp})))
 
 (defn pinv
   "`M⁺`, the Moore-Penrose pseudoinverse of real matrix `M`, such that

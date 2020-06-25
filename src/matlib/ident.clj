@@ -6,22 +6,21 @@
 
   Notation:
 
-  `x_k+1 = A x_k + B u_k + w_k`  
-  `  y_k = C x_k + D u_k + v_k`
+  `xₖ₊₁ = A xₖ + B uₖ + wₖ`  
+  `  yₖ = C xₖ + D uₖ + vₖ`
 
-  `u_k ∈ ℝ^m,`  
-  `y_k ∈ ℝ^l,`  
-  `x_k ∈ ℝ^n,`  
-   `w_k, v_k`  
-  are unobserved, Gaussian distributed, zero-mean, non-zero white noise.
+  `uₖ ∈ ℝᵐ,`  
+  `yₖ ∈ ℝˡ,`  
+  `xₖ ∈ ℝⁿ,`  
+  and `wₖ, vₖ` are unobserved, Gaussian distributed, zero-mean, non-zero white noise.
 
   They have covariances  
-  `E ( w_k w_l' ) = Q  δ_kl >= 0`  
-  `E ( w_k v_l' ) = S  δ_kl >= 0`  
-  `E ( v_k w_l' ) = S' δ_kl >= 0`  
-  `E ( v_k v_l' ) = R  δ_kl >= 0`  
+  `E ( wₖ wₗ' ) = Q  δₖₗ>= 0`  
+  `E ( wₖ vₗ' ) = S  δₖₗ>= 0`  
+  `E ( vₖ wₗ' ) = S' δₖₗ>= 0`  
+  `E ( vₖ vₗ' ) = R  δₖₗ>= 0`  
   
-  Snapshot matrices `U` and `Y` of `u_k` and `y_k` are taken with `k=0...(t-1)`.
+  Snapshot matrices `U` and `Y` of `uₖ` and `yₖ` are taken with `k=0...(t-1)`.
 
   References:
 
@@ -33,36 +32,44 @@
 
   [vOdM-94]  
   'N4SID: Subspace Algorithms for the Identification of Combined
-  Deterministic-Stochastic Systems',  
-  P van Overschee & B de Moor,  
+  Deterministic-Stochastic Systems'  
+  P van Overschee & B de Moor  
   Automatica Vol. 30 No. 1 pp. 75-93 (1993)
 
   [vOdM-95]  
-  A Unifying Theorem for Three Subspace System Identification Algorithms',  
-  P van Overschee & B de Moor,  
+  A Unifying Theorem for Three Subspace System Identification Algorithms'  
+  P van Overschee & B de Moor  
   Automatica, Vol. 31, No. 12, pp. 1853-1861 (1995)
 
   [vOdM-96]  
-  Subspace Identification for Linear Systems,  
+  Subspace Identification for Linear Systems  
   Theory — Implementation — Applications  
-  P van Overschee, B e Moor  
+  P van Overschee, B de Moor  
   Edition 1, Springer US, (1996)  
   ISBN 978-1-4613-8061-0
 
   [SSvH-04]  
   'High-Performance Numerical Algorithms and Software for Subspace-Based Linear
-  Multivariable System Identification',  
-  V Sima, DM Sima and S van Huffel,  
-  J. Comp. Appl. Math. Vol. 170 pp. 371-397 (2004)
+  Multivariable System Identification'  
+  V Sima, DM Sima and S van Huffel  
+  J. Comp. Appl. Math., Vol. 170, pp. 371-397 (2004)
+
+  [DSC-06]
+  'A New Insight to the Matrices Extraction in a MOESP Type Subspace
+  Identification Algorithm'  
+  CJM Delgado, P Lopes dos Santos and J L Martins de Carvalho  
+  Int. J. Systems Science, Vol. 37, No. 8, pp. 565-574 (2006)
+
   "
   (:require
-   [matlib.core :refer [eye vcat hcat]]
-   [matlib.linalg :refer [rsp rsp-perp oblique-rsp pinv rsvd]]
+   [matlib.core :refer [dge-eye vcat hcat take-rows take-cols]]
+   [matlib.control :refer [obsv]]
+   [matlib.linalg :refer [rsp rsp-perp oblique-rsp pinv rsvd condition]]
    [data.plot :as plot]
    [uncomplicate.neanderthal
     [core :refer [mm mm! transfer! copy! scal! axpy ncols mrows trans dia view-tr view-vctr view-ge subvector submatrix]]
     [vect-math :refer [sqrt inv]]
-    [linalg]
+    [linalg :as linalg]
     [native :refer [dge dgd]]]))
 
 ;;; TODO: follow through algebra for W2 according to [vOdM-96]
@@ -164,9 +171,10 @@
   `W2` should be `nil` if not used."
   ([W_p Y_f U_f W2 l n]
    (let [O_i (oblique-rsp Y_f U_f W_p)      ; eq (4.24)
-         {S1 :sigma U1 :u V1' :vt} (if W2
-                                     (rsvd (mm O_i W2) :rank n)
-                                     (rsvd O_i :rank n))
+         {S1 :sigma U1 :u V1' :vt
+          S2 :sigma_perp U2 :u_perp V2' :vt_perp} (if W2
+                                                    (rsvd (mm O_i W2) :rank n)
+                                                    (rsvd O_i :rank n))
          Gamma_i (mm U1 (sqrt S1))
          Gamma_up (submatrix Gamma_i l 0 (- (mrows Gamma_i) l) n)
          Gamma_down (submatrix Gamma_i (- (mrows Gamma_i) l) n)
@@ -179,11 +187,36 @@
       :order n
       :X_i X_i
       :Z_i Z_i
-      :S1 S1
-      :U1 U1
-      :V1' V1'})))
+      :S1 S1 :U1 U1 :V1' V1'})))
 
-(defn n4sid-1
+(defn Hd_i
+  "Block Toeplitz matrix of system matrices."
+  ([B D Gamma_i l m n i]
+   (let [li (* l i)
+         mi (* m i)
+         H (dge li mi)
+         DGamma_iB (vcat D (mm Gamma_i B))]
+      (doseq [stripe (range (- i 1))]
+        (let [block-col (take-rows DGamma_iB (- (mrows DGamma_iB) (* l stripe)))]
+          (copy! block-col (submatrix H (* stripe l) (* stripe m) (mrows block-col) (ncols block-col)))))
+      H)))
+  
+(defn BD_target
+  "Target function that is minimised when `B` and `D` are arguments."
+  [BD Gamma_i Xhat_i l m n]
+  (let [B (submatrix BD n l)
+        D (submatrix BD 0 n m l)
+        Z_i (axpy (mm Gamma_i Xhat_i) ((Hd_i A B C D) U_f))]
+    (norm2 (mm M_R Z_i))))
+
+(defn find-BD
+  "Find `B` and `D` by optimisation method of [DSC-06] for use when `U_f U_f'`
+  is poorly conditioned."
+  [A C Xhat_i]
+  (let [Gamma_i (obsv A C (- i 1))]
+    (argmin BD_target)))
+
+(defn n4sid
   "Algorithm 1 (Figure 4.6) of [vOdM-96]."
   ([ss i n]
    (n4sid-1 (:U ss) (:Y ss) i n))
@@ -215,7 +248,7 @@
       :order n
       :method :N4SID-1})))
 
-(defn n4sid-2
+(defn n4sid-biased
   "Algorithm 2 (Figure 4.7) of [vOdM-96].
   This algorithm gives asymptotically biased solutions."
   ([ss i n]
@@ -255,35 +288,10 @@
       :i i
       :method :N4SID-2})))
 
-(defn moesp
-  "Explicit calculation, per (6-8) of [vOdM-95],
-  following notation of [SSvH-04]."
-  ([ss i n]
-   (moesp (:U ss) (:Y ss) i n))
-  ([U Y i n]
-   (let [{N :N W_p :W_p Y_f :Y_f U_f :U_f} (block-hankel-matrices U Y i)
-         M (rsp-perp W_p U_f)
-         t (ncols U)
-         ; Here, use SVD but could instead use
-         ; LQ  decomposition (4.40)
-         ; svd of L_3_2      (4.41)
-         ; form Gamma        (4.42)
-         O_i (mm (rsp-perp Y_f U_f) (mm (pinv M) M))
-         {Sigma :sigma U_ :u V' :vt} (linalg/svd O_i true true)
-          S1 (transfer! (subvector (view-vctr (inv Sigma)) 0 n)
-                  (dgd n))
-          U1 (submatrix U_ (mrows U_) n)
-          V1' (submatrix V' n (ncols V'))
-          Gamma (mm U1 (sqrt S1))]
-     {:Gamma_i Gamma
-        :spectrum (scal! (/ 1.0 N) Sigma)
-        :order n
-        :i i
-        :method :MOESP})))
-
 (defn robust
   "Explicit calculation, per Figure 4.8 of [vOdM-96].
   This is the so-called 'robust' algorithm.
+  The expressions in [DSC-08] are also used.
   `i` is the model delay order and `n` is the model order."
   ([ss i n]
    (robust (:U ss) (:Y ss) i n))
@@ -307,12 +315,21 @@
           ACK (mm (vcat Jlu Y_i|i) (pinv (vcat Jru U_f)))
           A (submatrix ACK 0 0 n n)
           C (submatrix ACK n 0 l n)
-          K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))]
-          ; recompute Gamma_i, Gamma_i-1 from A, C
+          K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
+          ;; recompute Gamma_i, Gamma_i-1 from A, C
+          ; here we depart a bit to follow [DSC08]
+          {U2 :u_perp} (rsvd Gamma_i)]
+          ;M_R (mm (hcat (dge-eye l) (dge l (nrows U2))) U2 (trans U2))
+          ;P (axpy -1 (mm (vcat A C) Jru) (vcat Jlu Y_i|i))
+          ; If condition number of future input covariances > 1e4, it's poorly
+          ; conditioned for our purposes and we use this approach:
+          ;U_f_con (condition (mm U_f (trans U_f)))
           ; solve for B, D
+          ;BD (argmin (norm2 (mm M_R Z_i)))]
           ; determine covariance matrices
      {:A A
       :C C
+      ;:U_f_con U_f_con
       :spectrum (seq (dia S1))
       :order n
       :i i
@@ -327,7 +344,7 @@
    (let [p (- (* 2 i) 1)
          t (ncols U) 
          N (- t i i)
-         H (scal! (/ (Math/sqrt N)) (vcat (block-hankel U 0 p N) (block-hankel Y 0 p N)))
+         H (scal! (/ 1.0 (Math/sqrt N)) (vcat (block-hankel U 0 p N) (block-hankel Y 0 p N)))
          ; default no pivoting
          qr (linalg/qrf (trans H))
          Q (trans (linalg/org qr))
@@ -335,15 +352,15 @@
      {:R R :Q Q})))
 
 (defn partition-R
-  "Given the lower-triangular `R` of the RQ-factorisation of `H`,
+  "Given the lower-triangular `L` of the LQ-factorisation of `H`,
   Follows Chapter 6 / p.164 [vOdM-96]."
   ([ss i]
-   (let [R (:R (hankel-rq ss i))
+   (let [L (:R (hankel-rq ss i))
          l (ncols (:B ss))
          m (mrows (:C ss))]
-     (partition-R R l m)))
-  ([R l m]
-   (let [R (view-ge R)
+     (partition-R L l m)))
+  ([L l m]
+   (let [R (view-ge L)
          ; infer i from size of R, R is 2i(m+l) x 2i(m+l)
          i (/ (mrows R) (* 2 (+ m l)))
          ; block row/column sizes
@@ -433,7 +450,7 @@
          R5615 (:R5615 Rd)
          R6615 (:R6615 Rd)
          R2313' (trans R2313)
-         I2mi (transfer! (eye mi2) (dge mi2 mi2))
+         I2mi (dge-eye mi2)
          ; step 1
          Ls (mm R5614 (pinv R1414))
          L_Up (submatrix Ls li mi)
@@ -468,3 +485,39 @@
       :Gamma_i Gamma_i
       :Gamma_i-1 Gamma_i-1})))
   
+(defn moesp
+  "Explicit calculation, per (6-8) of [vOdM-95],
+  following notation of [SSvH-04]."
+  ([ss i n]
+   (moesp (:U ss) (:Y ss) i n))
+  ([U Y i n]
+   (let [l (mrows Y)
+         m (mrows U)
+         t (ncols U)
+         {:keys [N W_p Y_f U_f W_p+ Y_f- U_f-]} (block-hankel-matrices U Y i)
+         H (scal! (/ 1.0 (Math/sqrt N)) (vcat U_f W_p Y_f))
+         x1 (mrows U_f)
+         x2 (mrows W_p)
+         x3 (mrows Y_f)
+         ; default no pivoting
+         qr (linalg/qrf (trans H))
+         ;Q (trans (linalg/org qr))
+         L (view-ge (trans (view-ge (view-tr (:or qr) {:uplo :upper}))))
+         L11 (submatrix L 0         0         x1 x1)
+         L21 (submatrix L x1        0         x2 x1)
+         L31 (submatrix L (+ x1 x2) 0         x3 x1)
+         L22 (submatrix L x1        x1        x2 x2)
+         L32 (submatrix L (+ x1 x2) x1        x3 x2)
+         L33 (submatrix L (+ x1 x2) (+ x1 x2) x3 x3)
+         {sigma_1 :sigma U_1 :u V_1' :vt} (rsvd L32 :rank n)
+         Gamma_i (mm U_1 (sqrt sigma_1))
+         Gamma_up (submatrix Gamma_i l 0 (- (mrows Gamma_i) l) n)
+         Gamma_down (submatrix Gamma_i (- (mrows Gamma_i) l) n)
+         A (mm (pinv Gamma_down) Gamma_up)
+         C (submatrix Gamma_i l n)]
+     {:A A
+      :C C
+      :order n
+      :i i
+      :method :MOESP})))
+

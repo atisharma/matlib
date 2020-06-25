@@ -1,8 +1,8 @@
+[![PRsWelcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+
 # matlib
 
 Matlib is a Clojure library of convenience matrix functions based on Neanderthal.
-
-I could have called it Mousterian, but I prefer descriptive names.
 
 ## Motivation
 
