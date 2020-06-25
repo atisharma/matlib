@@ -29,7 +29,7 @@
 (def ^:private ip2 (/ (- 3.0 (Math/sqrt 5.0)) 2.0))
 
 (defn- tolerance
-  "Default tolerance for iterative functions, `sqrt eps * |x|²`."
+  "Default tolerance for iterative functions, `sqrt eps * |x|₂`."
   [x]
   (if (vctr? x)
     (* sq-eps (max 1.0 (nrm2 x)))
@@ -53,7 +53,7 @@
      df_dx)))
 
 (defn scalar-grad
-  "Approximate gradient of a function `phi` by forward finite-difference, where
+  "Approximate gradient of a function `phi` by central finite-difference, where
   `phi: ℝ -> ℝ."
   ([phi ^double x]
    (scalar-grad phi x (tolerance x)))
@@ -63,7 +63,8 @@
      (/ (- (phi x+) (phi x-)) (* 2 h)))))
 
 (defn grad
-  "Approximate vector or scalar gradient."
+  "Approximate vector or scalar gradient of function `f` using central
+  finite-difference."
   [f x]
   (if (vctr? x)
     (vctr-grad f x)
@@ -83,9 +84,9 @@
                                      fc (phi c)
                                      fd (phi d)
                                      k 0}} args]
-     (cond (<= h (tolerance x+)) {:sol (/ (+ a b) 2.0) :iterations k}
-           (< fc fd) (recur phi a d {:h (* h ip) :d c :fd fc :k (inc k)})
-           (>= fc fd) (recur phi c b {:h (* h ip) :c d :fc fd :k (inc k)})))))
+     (cond (<= h (tolerance x+))  {:sol (/ (+ a b) 2.0) :iterations k}
+           (< fc fd)              (recur phi a d {:h (* h ip) :d c :fd fc :k (inc k)})
+           (>= fc fd)             (recur phi c b {:h (* h ip) :c d :fc fd :k (inc k)})))))
 
 (defn- zoom
   "Algorithm 3.6 of [NW-06] using bisection.  
@@ -238,7 +239,7 @@
     (scal! 1 r)))
 
 (defn- alg-7-5
-  "Compute L-BFGS descent direction. See Algorithm 7.5 of [NW-06]."
+  "Internal L-BFGS solver. See Algorithm 7.5 of [NW-06]."
   ([f x S Y k linesearch tol maxiter history output]
    (let [q (vctr-grad f x)
          ; search direction, start off downhill
@@ -305,3 +306,14 @@
     (+ (Math/pow (+ 1.5 (* x y) mx) 2)
        (Math/pow (+ 2.25 (* x y y) mx) 2)
        (Math/pow (+ 2.625 (* x y y y) mx) 2))))
+
+(defn- rosenbrock
+  "Rosenbrock function f: ℝ² -> ℝ.
+  Since there is a large flat valley, requires a low tolerance."
+  ([v]
+   (rosenbrock v 1 100))
+  ([v a b]
+   (let [x (entry v 0)
+         y (entry v 1)]
+     (+ (Math/pow (- a x) 2)
+        (* b (Math/pow (- y (* x x)) 2))))))
