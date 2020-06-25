@@ -2,7 +2,7 @@
   "Various optimisation algorithms.
   L-BFGS and gradient descent are implemented.
 
-  [NW-06]
+  [NW-06]  
   Numerical Optimization (second Ed.)
   J Nocedal, S Wright
   Springer-Verlag New York (2006)
@@ -10,7 +10,7 @@
   DOI: 10.1007/978-0-387-40065-5
   ISBN: 978-0-387-30303-1, 978-1-4939-3711-0
 
-  [L-BFGS]
+  [L-BFGS]  
   On the limited memory BFGS method for large scale optimization methods  
   DC Liu and J Nocedal  
   Mathematical Programming Vol. 45, pp. 503-528 (1989).
@@ -25,8 +25,8 @@
      [random :refer :all]
      [linalg :refer :all]]))
 
-(def ip (/ (- (Math/sqrt 5.0) 1.0) 2.0))
-(def ip2 (/ (- 3.0 (Math/sqrt 5.0)) 2.0))
+(def ^:private ip (/ (- (Math/sqrt 5.0) 1.0) 2.0))
+(def ^:private ip2 (/ (- 3.0 (Math/sqrt 5.0)) 2.0))
 
 (defn- tolerance
   "Default tolerance for iterative functions, `sqrt eps * |x|²`."
@@ -71,7 +71,7 @@
 
 (defn golden-section
   "Return double `x` that minimises differentiable `phi(x)` using golden mean search.
-  If bounds `x-` and `x+` are not given, they are assumed to be +-2e10."
+  If bounds `x-` and `x+` are not given, they are assumed to be +-1e20."
   ([phi]
    (golden-section phi -1e20 1e20))
   ([phi x- x+ & args]
@@ -141,7 +141,11 @@
                              :c2 c2})))))
 
 (defn backtrack
-  "Backtracking line search."
+  "Perform a backtracking line search to find a step length `a` satisfying the
+  Armijo-Goldstein conditions.  
+  `phi` function of scalar a  
+  `a` starting value.  
+  See p.60 [NW-06]."
   ([phi & options]
    (let [{:keys [a maxiter k tau c phi0 t]
           :or {a 10.0
@@ -170,7 +174,7 @@
   `:tol`      solution converges when `(nrm1 (grad f x)) < tol)`, (`sqrt eps * |x₀|²`)  
   `:maxiter`  maximum iterations (1000)  
   `:output`   print progress every iteration (`false`)  
-  `:lsmethod  line-search method for step length, one of `:wolfe`, `:gs`, `:backtrack` (`wolfe`)  
+  `:lsmethod` line-search method for step length, one of `:wolfe`, `:gs`, `:backtrack` (`wolfe`)  
   "
   ([f x & options]
    (let [{:keys [tol maxiter output k lsmethod]
@@ -266,7 +270,7 @@
   `:maxiter`  maximum iterations ( 1000)  
   `:history`  return search history (`false`)  
   `:output`   print progress every iteration (`false`)  
-  `:lsmethod  line-search method for step length, one of `:wolfe`, `:gs`, `:backtrack` (`wolfe`)  
+  `:lsmethod` line-search method for step length, one of `:wolfe`, `:gs`, `:backtrack` (`wolfe`)  
   "
   ([f x & options]
    (let [{:keys [tol maxiter output m history lsmethod]
