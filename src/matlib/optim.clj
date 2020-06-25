@@ -71,9 +71,9 @@
 
 (defn golden-section
   "Return double `x` that minimises differentiable `phi(x)` using golden mean search.
-  If bounds `x-` and `x+` are not given, they are assumed to be +-1e10."
+  If bounds `x-` and `x+` are not given, they are assumed to be +-2e10."
   ([phi]
-   (golden-section phi -1e10 1e10))
+   (golden-section phi -1e20 1e20))
   ([phi x- x+ & args]
    (let [a (min x- x+)
          b (max x- x+)
@@ -235,7 +235,7 @@
 
 (defn- alg-7-5
   "Compute L-BFGS descent direction. See Algorithm 7.5 of [NW-06]."
-  ([f x S Y k linesearch tol maxiter output]
+  ([f x S Y k linesearch tol maxiter history output]
    (let [q (vctr-grad f x)
          ; search direction, start off downhill
          p (if (= 0 k) (scal -1 q) (alg-7-4 S Y q k))
@@ -250,10 +250,11 @@
                k a (nrmi q) (dot p s) (f x+)))
      (shift-update S (col-vector s))
      (shift-update Y (col-vector y))
-     (shift-update X (col-vector x))
-     (cond success        {:sol x+ :f (f x+) :iterations k :tol tol :maxiter maxiter :output output :X X :S S :Y Y :success true}
-           (> k maxiter)  {:sol x+ :f (f x+) :iterations k :tol tol :maxiter maxiter :output output :X X :S S :Y Y :success false}
-           :else          (recur f x+ S Y (inc k) linesearch tol maxiter output)))))
+     (when history
+       (shift-update X (col-vector x)))
+     (cond success        (merge {:sol x+ :f (f x+) :iterations k :tol tol :maxiter maxiter :output output :success true} (if history {:X X :S S :Y Y} {}))
+           (> k maxiter)  (merge {:sol x+ :f (f x+) :iterations k :tol tol :maxiter maxiter :output output :success false} (if history {:X X :S S :Y Y} {}))
+           :else          (recur f x+ S Y (inc k) linesearch tol maxiter history output)))))
         
 (defn l-bfgs
   "L-BFGS, using finite-difference gradient approximation.
@@ -263,15 +264,17 @@
   `:m`        number of last iterations to store for approximate Hessian (20)  
   `:tol`      solution converges when `(nrm1 (grad f x)) < tol)`, (`sqrt eps * |x₀|²`)  
   `:maxiter`  maximum iterations ( 1000)  
+  `:history`  return search history (`false`)  
   `:output`   print progress every iteration (`false`)  
   `:lsmethod  line-search method for step length, one of `:wolfe`, `:gs`, `:backtrack` (`wolfe`)  
   "
   ([f x & options]
-   (let [{:keys [tol maxiter output m lsmethod]
+   (let [{:keys [tol maxiter output m history lsmethod]
           :or {tol (tolerance x)
                maxiter 1000
                output false
                m 20
+               history false
                lsmethod :wolfe}} options
          linesearch (get {:wolfe wolfe :gs golden-section :backtrack backtrack} lsmethod wolfe)
          S (dge (dim x) m)
@@ -279,17 +282,22 @@
      (when output
        (print options "\n")
        (print "\t\ta: steplength\ts: step\t\ty: ddf/dx\tq: df/dx\tp: search dirn\n"))
-     (merge (alg-7-5 f (copy x) S Y 0 linesearch tol maxiter output) {:lsmethod lsmethod}))))
+     (merge (alg-7-5 f (copy x) S Y 0 linesearch tol maxiter history output) {:lsmethod lsmethod}))))
 
-(defn- f
-  "Booth function f: ℝⁿ -> ℝ, minimum at f(1, 3) = 0."
+(defn- booth
+  "Booth function f: ℝ² -> ℝ, minimum at f(1, 3) = 0."
   [v]
   (let [x (entry v 0)
         y (entry v 1)]
-    (+ (Math/pow (+ x y y -7), 2)
-       (Math/pow (+ x x y -5), 2))))
+    (+ (Math/pow (+ x y y -7) 2)
+       (Math/pow (+ x x y -5) 2))))
 
-(defn- make-phi
-  "A test function phi(a) = f(x + ap)."
-  [f x p]
-  #(f (axpy % p x)))
+(defn- beale
+  "Beale function f: ℝ² -> ℝ, minimum at f(3, 0.5) = 0."
+  [v]
+  (let [x (entry v 0)
+        y (entry v 1)
+        mx (- x)]
+    (+ (Math/pow (+ 1.5 (* x y) mx) 2)
+       (Math/pow (+ 2.25 (* x y y) mx) 2)
+       (Math/pow (+ 2.625 (* x y y y) mx) 2))))
