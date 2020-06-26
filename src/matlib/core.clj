@@ -1,9 +1,9 @@
 (ns matlib.core
   "Basic matrix constructions, operations and patterns."
   (:require
-   [uncomplicate.neanderthal
-    [native :refer [dge dgd native-double]]
-    [core :refer [alter! entry entry! copy copy! transfer! scal! dim vctr vctr? view-vctr mm axpy col ncols mrows trans submatrix]]]))
+    [uncomplicate.neanderthal.real :refer [entry entry!]]
+    [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
+    [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]))
 
 (defn machine-epsilon
   "Approximate machine epsilon."

@@ -12,14 +12,14 @@
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :scm {:name "git"
-          :url "https://github.com/atisharma/matlib"}
+        :url "https://github.com/atisharma/matlib"}
   :url "https://agalmic.ltd"
   ; jvm-opts required by Neanderthal on JDK > 8.
   :jvm-opts ^:replace ["--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"]
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [uncomplicate/neanderthal "0.31.0"]]
                  ; No need to specify slf4j-api, as it’s required by logback.
-                 ; These loggers are there mainly to keep Neanderthal quiet.
+                 ; These loggers are here mainly to keep Neanderthal quiet.
                  ;[org.clojure/tools.logging "0.6.0"]
                  ;[ch.qos.logback/logback-classic "1.2.3"]]
   ; lein with-env-vars repl

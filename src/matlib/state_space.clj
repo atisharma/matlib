@@ -45,13 +45,14 @@
   will be added to the map.
   "
   (:require
-    [matlib.core :refer [eye col-vector]]
-    [matlib.linalg :refer [minv]]
-    [uncomplicate.neanderthal
-     [native :refer [dge]]
-     [vect-math :as vect-math]
-     [random :refer [rand-normal!]]
-     [core :refer [dim scal! copy copy! transfer! mm axpy axpy! axpby! ncols mrows col row trans submatrix entry]]]))
+    [matlib.core :refer :all]
+    [matlib.linalg :refer :all]
+    [uncomplicate.neanderthal.real :refer [entry entry!]]
+    [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
+    [uncomplicate.neanderthal.linalg :refer :all]
+    [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]
+    [uncomplicate.neanderthal.vect-math :refer :all]
+    [uncomplicate.neanderthal.random :as random]))
 
 (defn step-discrete-time
   "Integrate a discrete-time system one step, by calculating  
@@ -74,7 +75,7 @@
       :y  y
       :u  (col-vector u)}
      (if (:E ss)
-       (let [n  (mm (:E ss) (rand-normal! (dge (ncols (:E ss)) 1)))
+       (let [n  (mm (:E ss) (random/rand-normal! (dge (ncols (:E ss)) 1)))
              w  (submatrix n (dim x) 1)
              v  (submatrix n (dim x) 0 (dim y) 1)]
          {:x+ (axpy x+ w)
@@ -138,21 +139,21 @@
                :U (dge 2 i)})
 
 ; first input signal
-(axpy! (vect-math/sin (scal! 0.050 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
-(axpy! (vect-math/sin (scal! 0.055 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
-(axpy! (vect-math/sin (scal! 0.150 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
-(axpy! (vect-math/sin (scal! 1.150 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
-(axpy! (vect-math/sin (scal! 0.002 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
+(axpy! (sin (scal! 0.050 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
+(axpy! (sin (scal! 0.055 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
+(axpy! (sin (scal! 0.150 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
+(axpy! (sin (scal! 1.150 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
+(axpy! (sin (scal! 0.002 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))
                                                                                       
 ; second input signal                                                                 
-(axpy! (vect-math/sin (scal! 0.500 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
-(axpy! (vect-math/sin (scal! 0.530 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
-(axpy! (vect-math/sin (scal! 1.503 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
-(axpy! (vect-math/sin (scal! 4.503 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
-(axpy! (vect-math/sin (scal! 0.007 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
+(axpy! (sin (scal! 0.500 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
+(axpy! (sin (scal! 0.530 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
+(axpy! (sin (scal! 1.503 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
+(axpy! (sin (scal! 4.503 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
+(axpy! (sin (scal! 0.007 (dge 1 i (range)))) (submatrix (:U ss-model) 1 0 1 i))
 
 ; arbitrarily step some input
 (scal! 5.0 (submatrix (:U ss-model) 0 200 2 1000))
 
 ; input noise
-(axpy! (rand-normal! 0 0.1 (dge (mrows (:U ss-model)) (ncols (:U ss-model)))) (:U ss-model))
+(axpy! (random/rand-normal! 0 0.1 (dge (mrows (:U ss-model)) (ncols (:U ss-model)))) (:U ss-model))

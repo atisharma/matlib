@@ -25,8 +25,8 @@
   References:
 
   [V-94]  
-  Identification of the deterministic part of MIMO state space models given in
-  innovations form from input-output data,  
+  'Identification of the deterministic part of MIMO state space models given in
+  innovations form from input-output data'  
   M Verhaegen,  
   Automatica, Vol. 30, No. 1, pp. 61-74 (1994)
 
@@ -37,13 +37,13 @@
   Automatica Vol. 30 No. 1 pp. 75-93 (1993)
 
   [vOdM-95]  
-  A Unifying Theorem for Three Subspace System Identification Algorithms'  
+  'A Unifying Theorem for Three Subspace System Identification Algorithms'  
   P van Overschee & B de Moor  
   Automatica, Vol. 31, No. 12, pp. 1853-1861 (1995)
 
   [vOdM-96]  
-  Subspace Identification for Linear Systems  
-  Theory — Implementation — Applications  
+  'Subspace Identification for Linear Systems  
+  Theory — Implementation — Applications'  
   P van Overschee, B de Moor  
   Edition 1, Springer US, (1996)  
   ISBN 978-1-4613-8061-0
@@ -62,14 +62,15 @@
 
   "
   (:require
-   [matlib.core :refer [dge-eye vcat hcat take-rows take-cols]]
-   [matlib.control :refer [obsv]]
-   [matlib.linalg :refer [rsp rsp-perp oblique-rsp pinv rsvd condition]]
-   [uncomplicate.neanderthal
-    [core :refer [mm mm! transfer! copy! scal! axpy ncols mrows trans dia view-tr view-vctr view-ge subvector submatrix]]
-    [vect-math :refer [sqrt inv]]
-    [linalg :as linalg]
-    [native :refer [dge dgd]]]))
+    [matlib.core :refer :all]
+    [matlib.linalg :refer :all]
+    [matlib.control :refer [obsv]]
+    [uncomplicate.neanderthal.real :refer [entry entry!]]
+    [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
+    [uncomplicate.neanderthal.linalg :refer :all]
+    [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]
+    [uncomplicate.neanderthal.vect-math :as vect-math]
+    [uncomplicate.neanderthal.random :as random]))
 
 ;;; TODO: follow through algebra for W2 according to [vOdM-96]
 ;;; TODO: find BDQRS in N4SID-1
@@ -163,7 +164,7 @@
    (let [{N :N W_p :W_p Y_f :Y_f U_f :U_f} (block-hankel-matrices U Y i)
          W (W_2 W_p Y_f U_f :MOESP)
          O (mm (rsp-perp Y_f U_f) W)] ; weighted oblique projection
-     (scal! (/ 1.0 N) (:sigma (linalg/svd (mm O W)))))))
+     (scal! (/ 1.0 N) (:sigma (svd (mm O W)))))))
 
 (defn intermediates
   "Intermediate calculations for all methods.
@@ -174,11 +175,11 @@
           S2 :sigma_perp U2 :u_perp V2' :vt_perp} (if W2
                                                     (rsvd (mm O_i W2) :rank n)
                                                     (rsvd O_i :rank n))
-         Gamma_i (mm U1 (sqrt S1))
+         Gamma_i (mm U1 (vect-math/sqrt S1))
          Gamma_up (submatrix Gamma_i l 0 (- (mrows Gamma_i) l) n)
          Gamma_down (submatrix Gamma_i (- (mrows Gamma_i) l) n)
          Z_i (rsp Y_f (vcat W_p U_f))       ; eq (4.18)
-         X_i (mm (sqrt S1) V1')]
+         X_i (mm (vect-math/sqrt S1) V1')]
      {:O_i O_i
       :Gamma_i Gamma_i
       :Gamma_up Gamma_up
@@ -202,23 +203,24 @@
   
 (defn BD_target
   "Target function that is minimised when `B` and `D` are arguments."
-  [BD Gamma_i Xhat_i l m n]
+  [BD A B C D U_f Gamma_i Xhat_i M_R Z_i l m n]
   (let [B (submatrix BD n l)
         D (submatrix BD 0 n m l)
         Z_i (axpy (mm Gamma_i Xhat_i) ((Hd_i A B C D) U_f))]
-    (norm2 (mm M_R Z_i))))
+    (nrm2 (mm M_R Z_i))))
 
 (defn find-BD
   "Find `B` and `D` by optimisation method of [DSC-06] for use when `U_f U_f'`
   is poorly conditioned."
-  [A C Xhat_i]
+  [A C Xhat_i i]
   (let [Gamma_i (obsv A C (- i 1))]
-    (argmin BD_target)))
+    ;(argmin BD_target)
+    :not-implemented))
 
 (defn n4sid
   "Algorithm 1 (Figure 4.6) of [vOdM-96]."
   ([ss i n]
-   (n4sid-1 (:U ss) (:Y ss) i n))
+   (n4sid (:U ss) (:Y ss) i n))
   ([U Y i n]
    (let [l (mrows Y)
          m (mrows U)
@@ -251,7 +253,7 @@
   "Algorithm 2 (Figure 4.7) of [vOdM-96].
   This algorithm gives asymptotically biased solutions."
   ([ss i n]
-   (n4sid-2 (:U ss) (:Y ss) i n))
+   (n4sid-biased (:U ss) (:Y ss) i n))
   ([U Y i n]
    (let [l (mrows Y)
          m (mrows U)
@@ -345,8 +347,8 @@
          N (- t i i)
          H (scal! (/ 1.0 (Math/sqrt N)) (vcat (block-hankel U 0 p N) (block-hankel Y 0 p N)))
          ; default no pivoting
-         qr (linalg/qrf (trans H))
-         Q (trans (linalg/org qr))
+         qr (qrf (trans H))
+         Q (trans (org qr))
          R (trans (view-tr (:or qr) {:uplo :upper}))]
      {:R R :Q Q})))
 
@@ -463,7 +465,7 @@
              (mm L_Yp R44))
          {S1 :sigma U1 :u V1' :vt} (rsvd F :rank n)
          ; step 4
-         Gamma_i (mm U1 (sqrt S1))
+         Gamma_i (mm U1 (vect-math/sqrt S1))
          Gamma_up (submatrix Gamma_i l 0 (- (mrows Gamma_i) l) n)
          Gamma_down (submatrix Gamma_i (- (mrows Gamma_i) l) n)
          Gamma_i-1 Gamma_down
@@ -499,8 +501,8 @@
          x2 (mrows W_p)
          x3 (mrows Y_f)
          ; default no pivoting
-         qr (linalg/qrf (trans H))
-         ;Q (trans (linalg/org qr))
+         qr (qrf (trans H))
+         ;Q (trans (org qr))
          L (view-ge (trans (view-ge (view-tr (:or qr) {:uplo :upper}))))
          L11 (submatrix L 0         0         x1 x1)
          L21 (submatrix L x1        0         x2 x1)
@@ -509,7 +511,7 @@
          L32 (submatrix L (+ x1 x2) x1        x3 x2)
          L33 (submatrix L (+ x1 x2) (+ x1 x2) x3 x3)
          {sigma_1 :sigma U_1 :u V_1' :vt} (rsvd L32 :rank n)
-         Gamma_i (mm U_1 (sqrt sigma_1))
+         Gamma_i (mm U_1 (vect-math/sqrt sigma_1))
          Gamma_up (submatrix Gamma_i l 0 (- (mrows Gamma_i) l) n)
          Gamma_down (submatrix Gamma_i (- (mrows Gamma_i) l) n)
          A (mm (pinv Gamma_down) Gamma_up)

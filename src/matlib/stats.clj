@@ -1,12 +1,14 @@
 (ns matlib.stats
   "Basic statistical matrix operations."
   (:require
-    [matlib.core :refer [eye ones col-vector]]
-   [uncomplicate.neanderthal
-    [native :refer [dge dgd]]
-    [core :refer [transfer! dim dia copy scal! rows cols mrows ncols dia mm sum axpy! ncols trans]]
-    [vect-math :refer [div div! sqrt!]]
-    [random :refer [rand-normal!]]]))
+    [matlib.core :refer :all]
+    [matlib.linalg :refer :all]
+    [uncomplicate.neanderthal.real :refer [entry entry!]]
+    [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
+    [uncomplicate.neanderthal.linalg :refer :all]
+    [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]
+    [uncomplicate.neanderthal.vect-math :refer :all]
+    [uncomplicate.neanderthal.random :refer :all]))
 
 (defn row-mean
   "Mean across rows."

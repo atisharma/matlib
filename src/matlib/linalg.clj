@@ -1,12 +1,31 @@
 (ns matlib.linalg
-  "Linear algebra operations on matrices."
+  "Linear algebra operations on matrices.
+  
+  Useful references:
+  
+  [S-06]
+  'Linear Algebra and Its Applications (4th Ed.)'  
+  G Strang  
+  Wellesley-Cambridge Press (2016)  
+  ISBN 10: 0980232775  
+  ISBN 13: 9780980232776
+
+  [TB-97]  
+  'Numerical Linear Algebra'  
+  Lloyd N. Trefethen, David Bau III  
+  SIAM: Society for Industrial and Applied Mathematics (1997)
+  ISBN 10: 0898713617  
+  ISBN 13: 9780898713619
+
+  "
   (:require
-   [matlib.core :refer [eps sq-eps]]
-   [uncomplicate.neanderthal
-    [core :refer [transfer! copy! scal! copy axpy entry nrm2 sum mm dia dim ncols mrows trans view-vctr subvector submatrix]]
-    [vect-math :refer [sqrt inv mul]]
-    [native :refer [dgd dge]]
-    [linalg :refer :all]]))
+    [matlib.core :refer :all]
+    [uncomplicate.neanderthal.real :refer [entry entry!]]
+    [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
+    [uncomplicate.neanderthal.linalg :refer :all]
+    [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]
+    [uncomplicate.neanderthal.vect-math :as vect-math]
+    [uncomplicate.neanderthal.random :as random]))
 
 (defn minv
   "Matrix inverse of `M` based on LU decomposition."
@@ -54,7 +73,7 @@
   ([M & options]
    (let [{:keys [tol rank] :or {tol sq-eps, rank nil}} options
          {:keys [u vt sigma]} (rsvd M :tol tol :rank rank)
-         inv-sigma (inv sigma)]
+         inv-sigma (vect-math/inv sigma)]
      (mm (trans vt) inv-sigma (trans u)))))
 
 (defn rank
@@ -110,7 +129,7 @@
   ([A]
    A)
   ([A B]
-   (dge (mrows A) (ncols B) (mul (view-vctr A) (view-vctr B))))
+   (dge (mrows A) (ncols B) (vect-math/mul (view-vctr A) (view-vctr B))))
   ([A B & rst]
    (reduce hada (hada A B) rst)))
   

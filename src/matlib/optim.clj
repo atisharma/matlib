@@ -3,27 +3,28 @@
   L-BFGS and gradient descent are implemented.
 
   [NW-06]  
-  Numerical Optimization (second Ed.)
-  J Nocedal, S Wright
-  Springer-Verlag New York (2006)
-  ISBN: 978-0-387-40065-5
-  DOI: 10.1007/978-0-387-40065-5
+  'Numerical Optimization (second Ed.)'  
+  J Nocedal, S Wright  
+  Springer-Verlag New York (2006)  
+  ISBN: 978-0-387-40065-5  
+  DOI: 10.1007/978-0-387-40065-5  
   ISBN: 978-0-387-30303-1, 978-1-4939-3711-0
 
   [L-BFGS]  
-  On the limited memory BFGS method for large scale optimization methods  
+  'On the limited memory BFGS method for large scale optimization methods'  
   DC Liu and J Nocedal  
-  Mathematical Programming Vol. 45, pp. 503-528 (1989).
+  Mathematical Programming Vol. 45, pp. 503-528 (1989)
+
   "
   (:require
-    [matlib.core :refer [eps sq-eps shift-update dge-eye last-cols col-vector ones take-cols drop-cols]]
-    [uncomplicate.neanderthal
-     [core :refer [transfer! copy! copy scal! scal xpy axpy axpy! dot nrm1 nrm2 nrmi sum mm dia dim col ncols mrows trans view-vctr subvector submatrix vctr?]]
-     [vect-math :refer [sqrt inv mul div]]
-     [native :refer [dgd dge dv]]
-     [real :refer [entry entry!]]
-     [random :refer :all]
-     [linalg :refer :all]]))
+    [matlib.core :refer :all]
+    [matlib.linalg :refer :all]
+    [uncomplicate.neanderthal.real :refer [entry entry!]]
+    [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
+    [uncomplicate.neanderthal.linalg :refer :all]
+    [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]
+    [uncomplicate.neanderthal.vect-math :as vect-math]
+    [uncomplicate.neanderthal.random :as random]))
 
 (def ^:private ip (/ (- (Math/sqrt 5.0) 1.0) 2.0))
 (def ^:private ip2 (/ (- 3.0 (Math/sqrt 5.0)) 2.0))
