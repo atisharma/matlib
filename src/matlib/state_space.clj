@@ -127,16 +127,16 @@
 (def i 8000)
 
 (def ss-model {:A (dge 2 2 [0.9 0.2 0 -0.995])
-               ;:B (dge 3 2 [1 0 1, 0 1 1])
-               :B (dge 2 2 [1 2, 0 1])
-               :C (dge 1 2 [1 1, 0 1])
-               :D (dge 1 2 [0 0, 0 0])
-               :E (scal! 0.005 (dge 3 2 (range)))
-               :x (dge 2 1 [0 0])
-               ; need a better input:
-               ; - persistently exciting
-               ; - different frequencies
-               :U (dge 2 i)})
+                ;:B (dge 3 2 [1 0 1, 0 1 1])
+                :B (dge 2 2 [1 2, 0 1])
+                :C (dge 1 2 [1 1, 0 1])
+                :D (dge 1 2 [0 0, 0 0])
+                :E (scal! 0.005 (dge 3 2 (range)))
+                :x (dge 2 1 [0 0])
+                ; need a better input:
+                ; - persistently exciting
+                ; - different frequencies
+                :U (dge 2 i)})
 
 ; first input signal
 (axpy! (sin (scal! 0.050 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))

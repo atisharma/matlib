@@ -12,7 +12,8 @@ Like MATLAB, this approach should work well for matrix-based numerical computati
 Neanderthal fills a need for a performant matrix library in Clojure, but it is
 essentially a thin wrapper around LAPACK functions. This library aims to
 furnish Clojure with some higher-level functions and applications, including
-system identification, control theory and optimisation tools.
+system identification, control theory and optimisation tools, without replicating
+things already available in Neanderthal.
 
 Why not core.matrix? It is of course subjective. The philosophy of core.matrix
 and Neanderthal is different and they serve different needs. I preferred being
@@ -36,11 +37,12 @@ Clojure, but is easier to relate back to papers describing the methods.
 
 ### Finished
 
-- SVD-based linear algebra functions like pseudo-inverse, subspace projections etc.
+- Various linear algebra functions like pseudo-inverse, kernel, subspace projections etc.
 - L-BFGS and gradient descent
 - N4SID second algorithm (biased)
-- N4SID, MOESP A, C matrices
+- N4SID and MOESP A, B, C, D matrices
 - Basis state-space representation, discrete-time integration
+- Gramians, Lyapunov equations
 - Some convenience functions
 
 
@@ -48,16 +50,14 @@ Clojure, but is easier to relate back to papers describing the methods.
 
 - There are currently no tests
 - Kroneker product
-- N4SID, MOESP B and D matrices
+- N4SID, MOESP covariances
 - Other system ID algorithms
 - Continuous-time state space integration
-- Control theory tools such as a Riccati equation solver, Lyapunov solver
-- Saving and loading of matrices
+- Riccati equation solver (but see [this issue](https://github.com/uncomplicate/neanderthal/issues/93))
 - Complex matrices (lacking in Neanderthal)
 
 Matlib uses only Neanderthal's native type. It shouldn't be *that* hard to use
-Neanderthal's GPU types, but I have not attempted the refactoring and testing
-necessary to successfully support it.
+Neanderthal's GPU types, but I have not attempted it.
 
 
 ## License

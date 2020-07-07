@@ -32,9 +32,9 @@
 (defn- tolerance
   "Default tolerance for iterative functions, `sqrt eps * |x|₂`."
   [x]
-  (if (vctr? x)
-    (* sq-eps (max 1.0 (nrm2 x)))
-    (* sq-eps (max 1.0 (Math/abs x)))))
+  (cond (vctr? x) (* sq-eps (max 1.0 (nrm2 x)))
+        (matrix? x) (* sq-eps (max 1.0 (nrm2 x)))
+        :else (* sq-eps (max 1.0 (Math/abs x)))))
 
 (defn vctr-grad
   "Gradient of `f` at `x`, approximated by central finite-difference,
@@ -265,7 +265,7 @@
 (defn l-bfgs
   "L-BFGS, using finite-difference gradient approximation.
   `f`   function to be solved, `f: ℝⁿ -> ℝ`.  
-  `x`   initial solution guess  
+  `x`   initial solution guess (as a vector)  
   options (default):
   `:m`        number of last iterations to store for approximate Hessian (20)  
   `:tol`      solution converges when `(nrm1 (grad f x)) < tol)`, (`sqrt eps * |x₀|²`)  
@@ -318,3 +318,13 @@
          y (entry v 1)]
      (+ (Math/pow (- a x) 2)
         (* b (Math/pow (- y (* x x)) 2))))))
+
+(defn- lyap
+  "Example matrix continuous time Lyapunov equation."
+  ([x]
+   (lyap x (dge 2 2 [1 3 2 1]) (dge 2 2 [5 34 34 5])))
+  ([x A Q]
+   (let [n (Math/sqrt (dim x))
+         X (view-ge x n n)]
+     (nrm2 (xpy (mm A X) (mm X A) Q)))))
+  

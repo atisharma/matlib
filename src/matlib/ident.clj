@@ -65,6 +65,7 @@
     [matlib.core :refer :all]
     [matlib.linalg :refer :all]
     [matlib.control :refer [obsv]]
+    [matlib.optim :refer [l-bfgs]]
     [uncomplicate.neanderthal.real :refer [entry entry!]]
     [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
     [uncomplicate.neanderthal.linalg :refer :all]
@@ -73,8 +74,8 @@
     [uncomplicate.neanderthal.random :as random]))
 
 ;;; TODO: follow through algebra for W2 according to [vOdM-96]
-;;; TODO: find BDQRS in N4SID-1
-;;; TODO: find ABCDQRS in N4SID-robust
+;;; TODO: find QRS in N4SID-1
+;;; TODO: find QRS in N4SID-robust
 ;;; TODO: find ABCDQRS in MOESP
 ;;; TODO: standardise methods to [vOdM-96] presentation
 
@@ -166,7 +167,7 @@
          O (mm (rsp-perp Y_f U_f) W)] ; weighted oblique projection
      (scal! (/ 1.0 N) (:sigma (svd (mm O W)))))))
 
-(defn intermediates
+(defn- intermediates
   "Intermediate calculations for all methods.
   `W2` should be `nil` if not used."
   ([W_p Y_f U_f W2 l n]
@@ -190,32 +191,51 @@
       :S1 S1 :U1 U1 :V1' V1'})))
 
 (defn Hd_i
-  "Block Toeplitz matrix of system matrices."
-  ([B D Gamma_i l m n i]
+  "Block Toeplitz matrix of system matrices.
+  See (5) [DSC-06]."
+  ([B D Gamma_i l m i]
    (let [li (* l i)
          mi (* m i)
          H (dge li mi)
-         DGamma_iB (vcat D (mm Gamma_i B))]
+         Gamma_down (submatrix Gamma_i (- li l) (ncols Gamma_i))
+         DGamma_iB (vcat D (mm Gamma_down B))]
       (doseq [stripe (range (- i 1))]
         (let [block-col (take-rows DGamma_iB (- (mrows DGamma_iB) (* l stripe)))]
           (copy! block-col (submatrix H (* stripe l) (* stripe m) (mrows block-col) (ncols block-col)))))
       H)))
-  
-(defn BD_target
-  "Target function that is minimised when `B` and `D` are arguments."
-  [BD A B C D U_f Gamma_i Xhat_i M_R Z_i l m n]
-  (let [B (submatrix BD n l)
-        D (submatrix BD 0 n m l)
-        Z_i (axpy (mm Gamma_i Xhat_i) ((Hd_i A B C D) U_f))]
-    (nrm2 (mm M_R Z_i))))
 
+(defn BD-cost
+  "Target function that is minimised when `B` and `D` are arguments, with
+  well-conditioned `U_f U_f'`.  
+  `Γᵢ⊥ Zᵢ = Γᵢ⊥ Hᵈᵢ U_f`.  
+  Minimise `||Γᵢ⊥ Zᵢ||₂`. "
+  [bd A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i]
+  (let [BD-matrix (view-ge bd (+ l n) m)
+        B (submatrix BD-matrix n m)
+        D (submatrix BD-matrix n 0 l m)
+        H (Hd_i B D Gamma_i l m i)
+        H- (Hd_i B D Gamma_i l m (- i 1))
+        Z (dge l (- (ncols H) m))
+        Ku (axpy -1 (mm A Gamma_i_pinv H) (hcat B (mm Gamma_i-1_pinv H-)))
+        Kl (axpy -1 (mm C Gamma_i_pinv H) (hcat D Z))]
+    (nrm2 (axpy -1 K (vcat Ku Kl)))))
+                          
 (defn find-BD
   "Find `B` and `D` by optimisation method of [DSC-06] for use when `U_f U_f'`
   is poorly conditioned."
-  [A C Xhat_i i]
-  (let [Gamma_i (obsv A C (- i 1))]
-    ;(argmin BD_target)
-    :not-implemented))
+  [A C K i m]
+  (let [l (mrows C)
+        n (mrows A)
+        Gamma_i (obsv A C i)
+        Gamma_i_pinv (pinv Gamma_i)
+        Gamma_i-1_pinv (pinv (obsv A C (- i 1)))
+        bd (view-vctr (dge (+ l n) m))
+        opt-result (l-bfgs #(BD-cost % A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i) bd)
+        sol (:sol opt-result)
+        BD-matrix (view-ge sol (+ l n) m)
+        B (submatrix BD-matrix n m)
+        D (submatrix BD-matrix n 0 l m)]
+    (merge opt-result {:B B :D D})))
 
 (defn n4sid
   "Algorithm 1 (Figure 4.6) of [vOdM-96]."
@@ -239,12 +259,13 @@
          ACK (mm (vcat Jlu Y_i|i) (pinv (vcat Jru U_f)))
          A (submatrix ACK 0 0 n n)
          C (submatrix ACK n 0 l n)
-         K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))]
-         ; solve for B, D using (4.53), (4.61), (4.62)
+         K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
+         BD-soln (find-BD A C K i m)]
          ; determine covariance matrices
      {:A A
       :C C
-      :K K
+      :B (:B BD-soln)
+      :D (:D BD-soln)
       :i i
       :order n
       :method :N4SID-1})))
@@ -317,20 +338,12 @@
           A (submatrix ACK 0 0 n n)
           C (submatrix ACK n 0 l n)
           K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
-          ;; recompute Gamma_i, Gamma_i-1 from A, C
-          ; here we depart a bit to follow [DSC08]
-          {U2 :u_perp} (rsvd Gamma_i)]
-          ;M_R (mm (hcat (dge-eye l) (dge l (nrows U2))) U2 (trans U2))
-          ;P (axpy -1 (mm (vcat A C) Jru) (vcat Jlu Y_i|i))
-          ; If condition number of future input covariances > 1e4, it's poorly
-          ; conditioned for our purposes and we use this approach:
-          ;U_f_con (condition (mm U_f (trans U_f)))
-          ; solve for B, D
-          ;BD (argmin (norm2 (mm M_R Z_i)))]
+          BD-soln (find-BD A C K i m)]
           ; determine covariance matrices
      {:A A
       :C C
-      ;:U_f_con U_f_con
+      :B (:B BD-soln)
+      :D (:D BD-soln)
       :spectrum (seq (dia S1))
       :order n
       :i i

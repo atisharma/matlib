@@ -84,21 +84,33 @@
          s1 (first sigma)]
      (count (filter #(> % tol) sigma)))))
        
-(defn condition
-  "Condition number of a matrix."
-  [M]
-  (let [sigma (seq (dia (:sigma (svd M))))]
-    (/ (first sigma) (last sigma))))
+(defn cokern
+  "(Left) null-space or kernel `X` of a matrix `M`, such that `x'M=0`, where 
+  `x` is any linear combination of columns of `X`."
+  ([M & options]
+   (let [{:keys [tol] :or {tol sq-eps}} options
+         m (mrows M)
+         n (ncols M)
+         d (max m n)
+         Z (dge m (- d n))
+         {:keys [u sigma]} (svd (hcat M Z) true false)
+         r (count (filter #(> % tol) (dia sigma)))
+         u (submatrix u 0 r (mrows u) (- (ncols u) r))]
+       u)))
 
 (defn kern
   "(Right) null-space or kernel `X` of a matrix `M`, such that `Mx=0`, where 
   `x` is any linear combination of columns of `X`."
   ([M & options]
    (let [{:keys [tol] :or {tol sq-eps}} options
-         {:keys [u vt sigma]} (svd M true true)
-         r (count (take-while #(> % tol) (dia sigma)))
-         V-perp (submatrix (trans vt) 0 r (ncols vt) (- (mrows vt) r))]
-     V-perp)))
+         m (mrows M)
+         n (ncols M)
+         d (max m n)
+         Z (dge (- d m) n)
+         {:keys [vt sigma]} (svd (vcat M Z) false true)
+         r (count (filter #(> % tol) (dia sigma)))
+         vt_perp (submatrix vt r 0 (- (mrows vt) r) (ncols vt))]
+       (trans vt_perp))))
 
 (defn span
   "Span (range) `R` of matrix `M`, such that for `r=Mx` and any vector `x`,
@@ -147,3 +159,9 @@
   "Trace of `M`."
   [M]
   (sum (dia M)))
+
+(defn schur-ordered
+  "Sorted Schur decomposition."
+  [M]
+  :not-implemented)
+
