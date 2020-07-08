@@ -55,7 +55,7 @@
 
 (defn scalar-grad
   "Approximate gradient of a function `phi` by central finite-difference, where
-  `phi: ℝ -> ℝ."
+  `phi: ℝ -> ℝ`."
   ([phi ^double x]
    (scalar-grad phi x (tolerance x)))
   ([phi ^double x ^double h]

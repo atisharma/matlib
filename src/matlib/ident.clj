@@ -62,7 +62,7 @@
   V Sima, DM Sima and S van Huffel  
   J. Comp. Appl. Math., Vol. 170, pp. 371-397 (2004)
 
-  [DSC-06]
+  [DSC-06]  
   'A New Insight to the Matrices Extraction in a MOESP Type Subspace
   Identification Algorithm'  
   CJM Delgado, P Lopes dos Santos and J L Martins de Carvalho  

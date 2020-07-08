@@ -3,7 +3,7 @@
   
   Useful references:
   
-  [S-06]
+  [S-06]  
   'Linear Algebra and Its Applications (4th Ed.)'  
   G Strang  
   Wellesley-Cambridge Press (2016)  
