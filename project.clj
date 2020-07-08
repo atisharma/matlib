@@ -25,6 +25,8 @@
   ; lein with-env-vars repl
   ; Is this working? Specified in $PATH in .bashrc.
   :env-vars {:LD_LIBRARY_PATH "/opt/intel/mkl/lib:/opt/intel/lib:/opt/intel/mkl/lib/intel64:/opt/intel/mkl/lib/intel64_lin"}
-  :repositories [["local" "~/.m2/repository"]]
+  :repositories [["local" "~/.m2/repository"
+                  :creds :gpg]]
+  :signing {:gpg-key "ati@agalmic.ltd"}
   :codox {:metadata {:doc/format :markdown}}
   :repl-options {:init-ns matlib.core})
