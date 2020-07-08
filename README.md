@@ -2,7 +2,8 @@
 
 # matlib
 
-Matlib is a Clojure library of convenience matrix functions based on Neanderthal.
+Matlib is a Clojure library of optimisation and control theory tools and
+convenience functions based on Neanderthal.
 
 ## Motivation
 
@@ -30,17 +31,15 @@ TBD
 
 Pull requests and bug reports are welcome. 
 
-The code is written in a style that is meant to read like the mathematics where
-possible. This leads to extensive use of `let`, which may not be pretty
-Clojure, but is easier to relate back to papers describing the methods.
+The code is written in a style that stays close to the mathematics in the
+referenced papers where possible. This leads to extensive use of `let`.
 
 
 ### Finished
 
 - Various linear algebra functions like pseudo-inverse, kernel, subspace projections etc.
-- L-BFGS and gradient descent
-- N4SID second algorithm (biased)
-- N4SID and MOESP A, B, C, D matrices
+- (optimisation) L-BFGS and gradient descent
+- (system identification) N4SID first, second (biased), and robust algorithms (untested)
 - Basis state-space representation, discrete-time integration
 - Gramians, Lyapunov equations
 - Some convenience functions
@@ -48,9 +47,10 @@ Clojure, but is easier to relate back to papers describing the methods.
 
 ### Unfinished
 
-- There are currently no tests
+- There are currently **no tests**
+- Continuous-time integration of state-space models
 - Kroneker product
-- N4SID, MOESP covariances
+- MOESP B, D, covariances
 - Other system ID algorithms
 - Continuous-time state space integration
 - Riccati equation solver (but see [this issue](https://github.com/uncomplicate/neanderthal/issues/93))
