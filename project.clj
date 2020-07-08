@@ -7,8 +7,8 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(defproject matlib "0.1.0"
-  :description "A collection of higher-level matrix functions built on Neanderthal."
+(defproject matlib "0.1.1"
+  :description "A Clojure library of optimisation and control theory tools and convenience functions based on Neanderthal."
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :scm {:name "git"
