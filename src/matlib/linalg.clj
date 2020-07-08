@@ -164,4 +164,3 @@
   "Sorted Schur decomposition."
   [M]
   :not-implemented)
-

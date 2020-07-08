@@ -1,5 +1,5 @@
 (ns matlib.control
-  "Linear algebra operations on matrices."
+  "Matrix equations relating to control theory."
   (:require
     [matlib.core :refer :all]
     [matlib.linalg :refer :all]

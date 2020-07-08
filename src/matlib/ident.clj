@@ -2,7 +2,7 @@
   "Identify a state-space model given input and output snapshot matrices,
   using deterministic-stochastic subspace methods (both MOESP and N4SID).
   
-  Notation and assumptions follow [vOdM-95].
+  Notation and assumptions mostly follow [vOdM-96].
 
   Notation:
 
@@ -21,6 +21,14 @@
   `E ( vₖ vₗ' ) = R  δₖₗ>= 0`  
   
   Snapshot matrices `U` and `Y` of `uₖ` and `yₖ` are taken with `k=0...(t-1)`.
+
+  The following algorithms are available.
+
+  `n4sid`: N4SID algorithm 1 (unbiased, using SVD rather than RQ decomposition),  
+  `n4sid-biased`: N4SID algorithm 2 (biased),  
+  `robust`: Mixed 'robust' algorithm 3 (Fig 4.8 [vOdM-96]),  
+  `robust-rq`: Mixed 'robust' algorithm 3 (Fig 4.8 [vOdM-96]) using RQ decomposition **(not finished)**,  
+  `moesp`: MOESP using LQ decomposition **(not finished)**.  
 
   References:
 
@@ -64,6 +72,7 @@
   (:require
     [matlib.core :refer :all]
     [matlib.linalg :refer :all]
+    [matlib.state-space]
     [matlib.control :refer [obsv]]
     [matlib.optim :refer [l-bfgs]]
     [uncomplicate.neanderthal.real :refer [entry entry!]]
@@ -74,10 +83,7 @@
     [uncomplicate.neanderthal.random :as random]))
 
 ;;; TODO: follow through algebra for W2 according to [vOdM-96]
-;;; TODO: find QRS in N4SID-1
-;;; TODO: find QRS in N4SID-robust
-;;; TODO: find ABCDQRS in MOESP
-;;; TODO: standardise methods to [vOdM-96] presentation
+;;; TODO: find BDQRS in MOESP
 
 (defn block-hankel
   "Construct a block-Hankel matrix `U_a,b` from snapshot matrix `U`.
@@ -142,7 +148,7 @@
       :U_f  (block-hankel U i       (- i2 1) (+ N i))
       :U_f- (block-hankel U (+ i 1) (- i2 1) (+ N i 1))})))
       
-(defn W_2
+(defn- W_2
   "Weighting matrix `W_2` is based on the method being used.
   `W_1` is not calculated because it's only used in CVA, which is not
   implemented here.
@@ -190,7 +196,7 @@
       :Z_i Z_i
       :S1 S1 :U1 U1 :V1' V1'})))
 
-(defn Hd_i
+(defn- Hd_i
   "Block Toeplitz matrix of system matrices.
   See (5) [DSC-06]."
   ([B D Gamma_i l m i]
@@ -204,11 +210,9 @@
           (copy! block-col (submatrix H (* stripe l) (* stripe m) (mrows block-col) (ncols block-col)))))
       H)))
 
-(defn BD-cost
-  "Target function that is minimised when `B` and `D` are arguments, with
-  well-conditioned `U_f U_f'`.  
-  `Γᵢ⊥ Zᵢ = Γᵢ⊥ Hᵈᵢ U_f`.  
-  Minimise `||Γᵢ⊥ Zᵢ||₂`. "
+(defn- BD-cost
+  "Convex target function that is minimised over `B` and `D` arguments.
+  Compare (4.51), (4.52) and (4.55) of [vOdM-96]."
   [bd A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i]
   (let [BD-matrix (view-ge bd (+ l n) m)
         B (submatrix BD-matrix n m)
@@ -220,9 +224,9 @@
         Kl (axpy -1 (mm C Gamma_i_pinv H) (hcat D Z))]
     (nrm2 (axpy -1 K (vcat Ku Kl)))))
                           
-(defn find-BD
-  "Find `B` and `D` by optimisation method of [DSC-06] for use when `U_f U_f'`
-  is poorly conditioned."
+(defn- find-BD
+  "Find `B` and `D` by convex optimisation method of [vOdM-96].
+  Compare (4.51), (4.52) and (4.55) of the same source."
   [A C K i m]
   (let [l (mrows C)
         n (mrows A)
@@ -237,6 +241,34 @@
         D (submatrix BD-matrix n 0 l m)]
     (merge opt-result {:B B :D D})))
 
+(defn- residual-covariance
+  "Prediction residuals in (4.51), (4.52) and (4.55) of [vOdM-96].
+  These are used to estimate the covariance matrices.
+  Quantities are be reconstructed from calculated system matrices where possible."
+  [A B C D i U_f Z_i Z_i+1 Y_i|i]
+  (let [l (mrows C)
+        m (ncols B)
+        n (mrows A)
+        Gamma_i (obsv A C i)
+        Gamma_i_pinv (pinv Gamma_i)
+        Gamma_i-1 (obsv A C (- i 1))
+        Gamma_i-1_pinv (pinv Gamma_i-1)
+        H (Hd_i B D Gamma_i l m i)
+        H- (Hd_i B D Gamma_i l m (- i 1))
+        Z (dge l (- (ncols H) m))
+        Ku (axpy -1 (mm A Gamma_i_pinv H) (hcat B (mm Gamma_i-1_pinv H-)))
+        Kl (axpy -1 (mm C Gamma_i_pinv H) (hcat D Z))
+        K (vcat Ku Kl)
+        J1 (vcat (mm (pinv Gamma_i-1) Z_i+1) Y_i|i)
+        J2 (mm (vcat A C) (pinv Gamma_i) Z_i)
+        residual (axpy 1 (mm K U_f) 1 J2 -1 J1)
+        samples (ncols residual)
+        covariance (scal! (/ 1.0 samples) (mm residual (trans residual)))]
+    {:Q (submatrix covariance 0 0 n n)
+     :S (submatrix covariance 0 n n l)
+     :R (submatrix covariance n n l l)
+     :samples samples}))
+  
 (defn n4sid
   "Algorithm 1 (Figure 4.6) of [vOdM-96]."
   ([ss i n]
@@ -260,15 +292,17 @@
          A (submatrix ACK 0 0 n n)
          C (submatrix ACK n 0 l n)
          K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
-         BD-soln (find-BD A C K i m)]
-         ; determine covariance matrices
-     {:A A
-      :C C
-      :B (:B BD-soln)
-      :D (:D BD-soln)
-      :i i
-      :order n
-      :method :N4SID-1})))
+         BD-soln (find-BD A C K i m)
+         B (:B BD-soln)
+         D (:D BD-soln)
+         QSR (residual-covariance A B C D i U_f Z_i Z_i+1 Y_i|i)]
+     (merge QSR {:A A
+                 :C C
+                 :B B
+                 :D D
+                 :i i
+                 :order n
+                 :method :n4sid}))))
 
 (defn n4sid-biased
   "Algorithm 2 (Figure 4.7) of [vOdM-96].
@@ -308,7 +342,7 @@
       :order n
       :samples samples
       :i i
-      :method :N4SID-2})))
+      :method :n4sid-biased})))
 
 (defn robust
   "Explicit calculation, per Figure 4.8 of [vOdM-96].
@@ -338,18 +372,20 @@
           A (submatrix ACK 0 0 n n)
           C (submatrix ACK n 0 l n)
           K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
-          BD-soln (find-BD A C K i m)]
-          ; determine covariance matrices
-     {:A A
-      :C C
-      :B (:B BD-soln)
-      :D (:D BD-soln)
-      :spectrum (seq (dia S1))
-      :order n
-      :i i
-      :method :N4SID-robust})))
+          BD-soln (find-BD A C K i m)
+          B (:B BD-soln)
+          D (:D BD-soln)
+          QSR (residual-covariance A B C D i U_f Z_i Z_i+1 Y_i|i)]
+     (merge QSR {:A A
+                 :C C
+                 :B B
+                 :D D
+                 :spectrum (seq (dia S1))
+                 :order n
+                 :i i
+                 :method :robust}))))
 
-(defn hankel-rq
+(defn- hankel-rq
   "(Lower) RQ factorisation of block-Hankel matrices, given snapshot matrices
   `U` and `Y`."
   ([ss i]
@@ -365,7 +401,7 @@
          R (trans (view-tr (:or qr) {:uplo :upper}))]
      {:R R :Q Q})))
 
-(defn partition-R
+(defn- partition-R
   "Given the lower-triangular `L` of the LQ-factorisation of `H`,
   Follows Chapter 6 / p.164 [vOdM-96]."
   ([ss i]
@@ -487,17 +523,12 @@
          Tr (vcat (mm (pinv Gamma_i) R5615)
                   R2315)
          S (mm Tl (pinv Tr))
-         A (submatrix S n n)
+         A (submatrix S 0 0 n n)
          C (submatrix S n 0 m n)]
-     {:S1 S1
-      :A A
+     {:A A
       :C C
       :A-old (mm (pinv Gamma_down) Gamma_up)
-      :C-old (submatrix Gamma_i m n)
-      :F F
-      :S S
-      :Gamma_i Gamma_i
-      :Gamma_i-1 Gamma_i-1})))
+      :C-old (submatrix Gamma_i m n)})))
   
 (defn moesp
   "Explicit calculation, per (6-8) of [vOdM-95],
@@ -534,4 +565,3 @@
       :order n
       :i i
       :method :MOESP})))
-

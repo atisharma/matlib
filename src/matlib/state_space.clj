@@ -106,7 +106,9 @@
      :else ss)))
 
 (defn tf
-  "Transfer function (input-output) of system."
+  "Transfer function (input-output) of system,  
+  `G(z) = D + C (zI - A)^-1 B`, or  
+  `G(s) = D + C (sI - A)^-1 B`."
   ([ss z]
    (let [A (:A ss)
          B (:B ss)
@@ -116,12 +118,11 @@
          I (transfer! (eye n) (dge n n))]
     (axpy 1 (mm C (minv (axpby! z I -1 (copy A))) B) D))))
 
-(defn sigma
-  "Singular values of the transfer function over a range of z."
-  [ss]
-  :not-implemented)
-
-
+(defn sigmas
+  "Singular values of the transfer function over a range of `z` (or `s`)."
+  [ss zs]
+  (apply hcat (map #(col-vector (:sigma (svd (tf ss %)))) zs)))
+  
 ;;; below is for testing
 
 (def i 8000)
