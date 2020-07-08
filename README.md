@@ -1,5 +1,5 @@
 [![PRsWelcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![](https://cljdoc.org/badge/matlib)](https://cljdoc.org/jump/release/matlib)
+[![Clojars Project](https://img.shields.io/clojars/v/matlib.svg)](https://clojars.org/matlib)
 
 # matlib
 
