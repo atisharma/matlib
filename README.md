@@ -49,11 +49,10 @@ referenced papers where possible. This leads to extensive use of `let`.
 ### Unfinished
 
 - There are currently **no tests**
-- Continuous-time integration of state-space models
+- Integration of continuous-time of state-space models
 - Kroneker product
 - MOESP B, D, covariances
 - Other system ID algorithms
-- Continuous-time state space integration
 - Riccati equation solver (but see [this issue](https://github.com/uncomplicate/neanderthal/issues/93))
 - Complex matrices (lacking in Neanderthal)
 

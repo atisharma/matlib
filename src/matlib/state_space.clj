@@ -33,7 +33,7 @@
   `{:x x(k), :u u(k), :y y(k), :x+ x(k+1)}`  
   and optionally with `{:E E}`.  
   If `E` is supplied, `w(k)` and `v(k)` are generated with covariance matrix  
-  `[ Q  S ] = E'E`  
+  `[ Q  S ] = EE'`  
   `[ S' R ]`  
   so that
   `( w(k) ) = E n(k)`  
@@ -109,6 +109,8 @@
   "Transfer function (input-output) of system,  
   `G(z) = D + C (zI - A)^-1 B`, or  
   `G(s) = D + C (sI - A)^-1 B`."
+  ([ss]
+   (fn [z] (tf ss z)))
   ([ss z]
    (let [A (:A ss)
          B (:B ss)
@@ -127,17 +129,18 @@
 
 (def i 8000)
 
-(def ss-model {:A (dge 2 2 [0.9 0.2 0 -0.995])
-                ;:B (dge 3 2 [1 0 1, 0 1 1])
-                :B (dge 2 2 [1 2, 0 1])
-                :C (dge 1 2 [1 1, 0 1])
-                :D (dge 1 2 [0 0, 0 0])
-                :E (scal! 0.005 (dge 3 2 (range)))
-                :x (dge 2 1 [0 0])
-                ; need a better input:
-                ; - persistently exciting
-                ; - different frequencies
-                :U (dge 2 i)})
+(def ss-model {:scheme :discrete-time
+               :A (dge 2 2 [0.9 0.2 0 -0.995])
+               ;:B (dge 3 2 [1 0 1, 0 1 1])
+               :B (dge 2 2 [1 2, 0 1])
+               :C (dge 1 2 [1 1, 0 1])
+               :D (dge 1 2 [0 0, 0 0])
+               :E (scal! 0.005 (dge 3 2 (range)))
+               :x (dge 2 1 [0 0])
+               ; need a better input:
+               ; - persistently exciting
+               ; - different frequencies
+               :U (dge 2 i)})
 
 ; first input signal
 (axpy! (sin (scal! 0.050 (dge 1 i (range)))) (submatrix (:U ss-model) 0 0 1 i))

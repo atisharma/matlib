@@ -1,6 +1,8 @@
 (ns matlib.ident
   "Identify a state-space model given input and output snapshot matrices,
   using deterministic-stochastic subspace methods (both MOESP and N4SID).
+
+  You are recommended to use the `robust` algorithm.
   
   Notation and assumptions mostly follow [vOdM-96].
 
@@ -263,10 +265,12 @@
         J2 (mm (vcat A C) (pinv Gamma_i) Z_i)
         residual (axpy 1 (mm K U_f) 1 J2 -1 J1)
         samples (ncols residual)
-        covariance (scal! (/ 1.0 samples) (mm residual (trans residual)))]
+        covariance (scal! (/ 1.0 samples) (mm residual (trans residual)))
+        {v :sigma Eu :u} (svd covariance true true)]
     {:Q (submatrix covariance 0 0 n n)
      :S (submatrix covariance 0 n n l)
      :R (submatrix covariance n n l l)
+     :E (mm Eu (vect-math/sqrt! v))
      :samples samples}))
   
 (defn n4sid
@@ -302,6 +306,7 @@
                  :D D
                  :i i
                  :order n
+                 :scheme :discrete-time
                  :method :n4sid}))))
 
 (defn n4sid-biased
@@ -331,7 +336,8 @@
          ; determine covariance matrices
          samples (ncols X_i)
          residual (axpy -1 (mm ABCD Jr) Jl)
-         covariance (scal! (/ 1.0 samples) (mm residual (trans residual)))]
+         covariance (scal! (/ 1.0 samples) (mm residual (trans residual)))
+         {v :sigma Eu :u} (svd covariance true true)]
      {:A (submatrix ABCD 0 0 n n)
       :B (submatrix ABCD 0 n n m)
       :C (submatrix ABCD n 0 l n)
@@ -339,9 +345,11 @@
       :Q (submatrix covariance 0 0 n n)
       :S (submatrix covariance 0 n n l)
       :R (submatrix covariance n n l l)
+      :E (mm Eu (vect-math/sqrt! v))
       :order n
       :samples samples
       :i i
+      :scheme :discrete-time
       :method :n4sid-biased})))
 
 (defn robust
@@ -383,6 +391,7 @@
                  :spectrum (seq (dia S1))
                  :order n
                  :i i
+                 :scheme :discrete-time
                  :method :robust}))))
 
 (defn- hankel-rq
@@ -527,6 +536,7 @@
          C (submatrix S n 0 m n)]
      {:A A
       :C C
+      :scheme :discrete-time
       :A-old (mm (pinv Gamma_down) Gamma_up)
       :C-old (submatrix Gamma_i m n)})))
   
@@ -564,4 +574,5 @@
       :C C
       :order n
       :i i
+      :scheme :discrete-time
       :method :MOESP})))
