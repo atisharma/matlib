@@ -262,7 +262,7 @@
        (shift-update X (col-vector x)))
      (cond success        (merge {:sol x+ :f f_x+ :iterations k :tol tol :maxiter maxiter :output output :success true} (if history {:X X :S S :Y Y} {}))
            (> k maxiter)  (merge {:sol x+ :f f_x+ :iterations k :tol tol :maxiter maxiter :output output :success false} (if history {:X X :S S :Y Y} {}))
-           (> f_x+ (f x)) (recur f (:sol (gradient-descent f x :tol tol :maxiter 50 :output output)) S Y X (inc k) linesearch tol maxiter history output)
+           (> f_x+ (f x)) (recur f (:sol (gradient-descent f x :tol tol :maxiter 20 :output output)) S Y X (inc k) linesearch tol maxiter history output)
            :else          (recur f x+ S Y X (inc k) linesearch tol maxiter history output)))))
         
 (defn l-bfgs

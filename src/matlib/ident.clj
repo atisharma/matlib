@@ -32,6 +32,9 @@
   `robust-rq`: Mixed 'robust' algorithm 3 (Fig 4.8 [vOdM-96]) using RQ decomposition **(not finished)**,  
   `moesp`: MOESP using LQ decomposition **(not finished)**.  
 
+  This implementation of the algorithms that find `B` and `D` through optimisation
+  use the (fast) biased algorithm as a first guess for `B` and `D`.
+
   References:
 
   [V-94]  
@@ -173,7 +176,7 @@
    (let [{N :N W_p :W_p Y_f :Y_f U_f :U_f} (block-hankel-matrices U Y i)
          W (W_2 W_p Y_f U_f :MOESP)
          O (mm (rsp-perp Y_f U_f) W)] ; weighted oblique projection
-     (scal! (/ 1.0 N) (:sigma (svd (mm O W)))))))
+     (scal! (/ 1.0 N) (dia (:sigma (svd (mm O W))))))))
 
 (defn- intermediates
   "Intermediate calculations for all methods.
@@ -229,19 +232,24 @@
 (defn- find-BD
   "Find `B` and `D` by convex optimisation method of [vOdM-96].
   Compare (4.51), (4.52) and (4.55) of the same source."
-  [A C K i m]
-  (let [l (mrows C)
-        n (mrows A)
-        Gamma_i (obsv A C i)
-        Gamma_i_pinv (pinv Gamma_i)
-        Gamma_i-1_pinv (pinv (obsv A C (- i 1)))
-        bd (view-vctr (dge (+ l n) m))
-        opt-result (l-bfgs #(BD-cost % A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i) bd :output true :m 500)
-        sol (:sol opt-result)
-        BD-matrix (view-ge sol (+ l n) m)
-        B (submatrix BD-matrix n m)
-        D (submatrix BD-matrix n 0 l m)]
-    (merge opt-result {:B B :D D})))
+  ([A C K i m]
+   (let [l (mrows C)
+         n (mrows A)
+         bd (dge (+ l n) m)]
+     (find-BD A C K i m bd false)))
+  ([A C K i m BD0 output]
+   (let [l (mrows C)
+         n (mrows A)
+         Gamma_i (obsv A C i)
+         Gamma_i_pinv (pinv Gamma_i)
+         Gamma_i-1_pinv (pinv (obsv A C (- i 1)))
+         bd (view-vctr BD0)
+         opt-result (l-bfgs #(BD-cost % A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i) bd :output output :m 500)
+         sol (:sol opt-result)
+         BD-matrix (view-ge sol (+ l n) m)
+         B (submatrix BD-matrix n m)
+         D (submatrix BD-matrix n 0 l m)]
+     (merge opt-result {:B B :D D}))))
 
 (defn- residual-covariance
   "Prediction residuals in (4.51), (4.52) and (4.55) of [vOdM-96].
@@ -273,43 +281,6 @@
      :E (mm Eu (vect-math/sqrt! v))
      :samples samples}))
   
-(defn n4sid
-  "Algorithm 1 (Figure 4.6) of [vOdM-96]."
-  ([ss i n]
-   (n4sid (:U ss) (:Y ss) i n))
-  ([U Y i n]
-   (let [l (mrows Y)
-         m (mrows U)
-         {:keys [N W_p Y_f U_f W_p+ Y_f- U_f-]} (block-hankel-matrices U Y i)
-         ;W2 (W_2 W_p Y_f U_f :MOESP) ; untested, check algebra
-         W2 nil
-         {Gamma_i :Gamma_i, Gamma_down :Gamma_down, Gamma_up :Gamma_up,
-          O_i :O_i, Z_i :Z_i} (intermediates W_p Y_f U_f W2 l n)
-         {O_i+1 :O_i, Z_i+1 :Z_i} (intermediates W_p+ Y_f- U_f- W2 l n)
-         Gamma_i-1 Gamma_down
-         Jlu (mm (pinv Gamma_i-1) Z_i+1)
-         Jru (mm (pinv Gamma_i) Z_i)
-         Y_i|i (block-hankel Y i i (- (ncols Jlu) i))
-         U_i|i (block-hankel U i i (- (ncols Jru) i))
-         ; solve linear eqns for A, C, K
-         ACK (mm (vcat Jlu Y_i|i) (pinv (vcat Jru U_f)))
-         A (submatrix ACK 0 0 n n)
-         C (submatrix ACK n 0 l n)
-         K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
-         BD-soln (find-BD A C K i m)
-         B (:B BD-soln)
-         D (:D BD-soln)
-         QSR (residual-covariance A B C D i U_f Z_i Z_i+1 Y_i|i)]
-     (merge QSR {:A A
-                 :C C
-                 :B B
-                 :D D
-                 :BD-converged (:success BD-soln)
-                 :i i
-                 :order n
-                 :scheme :discrete-time
-                 :method :n4sid}))))
-
 (defn n4sid-biased
   "Algorithm 2 (Figure 4.7) of [vOdM-96].
   This algorithm gives asymptotically biased solutions."
@@ -353,6 +324,45 @@
       :scheme :discrete-time
       :method :n4sid-biased})))
 
+(defn n4sid
+  "Algorithm 1 (Figure 4.6) of [vOdM-96]."
+  ([ss i n]
+   (n4sid (:U ss) (:Y ss) i n))
+  ([U Y i n & options]
+   (let [l (mrows Y)
+         m (mrows U)
+         {:keys [output] :or {output false}} options
+         {:keys [N W_p Y_f U_f W_p+ Y_f- U_f-]} (block-hankel-matrices U Y i)
+         ;W2 (W_2 W_p Y_f U_f :MOESP) ; untested, check algebra
+         W2 nil
+         {Gamma_i :Gamma_i, Gamma_down :Gamma_down, Gamma_up :Gamma_up,
+          O_i :O_i, Z_i :Z_i} (intermediates W_p Y_f U_f W2 l n)
+         {O_i+1 :O_i, Z_i+1 :Z_i} (intermediates W_p+ Y_f- U_f- W2 l n)
+         Gamma_i-1 Gamma_down
+         Jlu (mm (pinv Gamma_i-1) Z_i+1)
+         Jru (mm (pinv Gamma_i) Z_i)
+         Y_i|i (block-hankel Y i i (- (ncols Jlu) i))
+         U_i|i (block-hankel U i i (- (ncols Jru) i))
+         ; solve linear eqns for A, C, K
+         ACK (mm (vcat Jlu Y_i|i) (pinv (vcat Jru U_f)))
+         A (submatrix ACK 0 0 n n)
+         C (submatrix ACK n 0 l n)
+         K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
+         first-pass (n4sid-biased U Y i n)
+         BD-soln (find-BD A C K i m (vcat (mm (pinv C) (:C first-pass) (:B first-pass)) (:D first-pass)) output)
+         B (:B BD-soln)
+         D (:D BD-soln)
+         QSR (residual-covariance A B C D i U_f Z_i Z_i+1 Y_i|i)]
+     (merge QSR {:A A
+                 :C C
+                 :B B
+                 :D D
+                 :BD-converged (:success BD-soln)
+                 :i i
+                 :order n
+                 :scheme :discrete-time
+                 :method :n4sid}))))
+
 (defn robust
   "Explicit calculation, per Figure 4.8 of [vOdM-96].
   This is the so-called 'robust' algorithm.
@@ -360,10 +370,11 @@
   `i` is the model delay order and `n` is the model order."
   ([ss i n]
    (robust (:U ss) (:Y ss) i n))
-  ([U Y i n]
+  ([U Y i n & options]
    (let [l (mrows Y)
          m (mrows U)
          t (ncols U)
+         {:keys [output] :or {output false}} options
          ; block Hankel matrices, time-shifted and not:
          {:keys [N W_p Y_f U_f W_p+ Y_f- U_f-]} (block-hankel-matrices U Y i)
          ; intermediate calculations
@@ -381,7 +392,8 @@
           A (submatrix ACK 0 0 n n)
           C (submatrix ACK n 0 l n)
           K (submatrix ACK 0 n (+ n l) (- (ncols ACK) n))
-          BD-soln (find-BD A C K i m)
+          first-pass (n4sid-biased U Y i n)
+          BD-soln (find-BD A C K i m (vcat (mm (pinv C) (:C first-pass) (:B first-pass)) (:D first-pass)) output)
           B (:B BD-soln)
           D (:D BD-soln)
           QSR (residual-covariance A B C D i U_f Z_i Z_i+1 Y_i|i)]
