@@ -194,7 +194,8 @@
      (when output
        (when (= k 0) (print "gradient-descent" options "\n"))
        (printf "k: %05d\ta: %8.5f\t|grad| %10.3f\t|dx|: %10.3f\t|f(x+)|: %10.4f\n"
-               k a (nrmi g) (nrm2 (axpy -1 x x+)) (f x+)))
+               k a (nrmi g) (nrm2 (axpy -1 x x+)) (f x+))
+       (flush))
      (cond success        (merge options {:sol x+ :f (f x+) :grad g :iterations k :success true :lsmethod lsmethod})
            (> k maxiter)  (merge options {:sol x+ :f (f x+) :grad g :iterations k :success false :lsmethod lsmethod})
            :else          (recur f x+ {:tol tol :maxiter maxiter :output output :k (inc k) :lsmethod lsmethod})))))
@@ -255,7 +256,8 @@
          success (< (nrmi q) tol)]
      (when output
        (printf "k: %5d\ta: %8.5f\t|q| %10.3f\tp.s: %10.3f\t|f(x+)|: %10.4f\n"
-               k a (nrmi q) (dot p s) (f x+)))
+               k a (nrmi q) (dot p s) (f x+))
+       (flush))
      (shift-update S (col-vector s))
      (shift-update Y (col-vector y))
      (when history
