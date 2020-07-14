@@ -217,7 +217,8 @@
 
 (defn- BD-cost
   "Convex target function that is minimised over `B` and `D` arguments.
-  Compare (4.51), (4.52) and (4.55) of [vOdM-96]."
+  Compare (4.51), (4.52) and (4.55) of [vOdM-96].
+  Includes a small L2 regularisation penalty on `|B D|`."
   [bd A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i]
   (let [BD-matrix (view-ge bd (+ l n) m)
         B (submatrix BD-matrix n m)
@@ -227,7 +228,7 @@
         Z (dge l (- (ncols H) m))
         Ku (axpy -1 (mm A Gamma_i_pinv H) (hcat B (mm Gamma_i-1_pinv H-)))
         Kl (axpy -1 (mm C Gamma_i_pinv H) (hcat D Z))]
-    (nrm2 (axpy -1 K (vcat Ku Kl)))))
+    (+ (* (nrm2 bd) 1e-4) (nrm2 (axpy -1 K (vcat Ku Kl))))))
                           
 (defn- find-BD
   "Find `B` and `D` by convex optimisation method of [vOdM-96].
@@ -244,7 +245,7 @@
          Gamma_i_pinv (pinv Gamma_i)
          Gamma_i-1_pinv (pinv (obsv A C (- i 1)))
          bd (view-vctr BD0)
-         opt-result (l-bfgs #(BD-cost % A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i) bd :output output :m 500)
+         opt-result (l-bfgs #(BD-cost % A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i) bd :output output :m 50)
          sol (:sol opt-result)
          BD-matrix (view-ge sol (+ l n) m)
          B (submatrix BD-matrix n m)

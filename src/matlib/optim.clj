@@ -193,7 +193,7 @@
          success (< (nrm1 g) tol)]
      (when output
        (when (= k 0) (print "gradient-descent" options "\n"))
-       (printf "k: %05d\ta: %8.5f\t|grad| %10.3f\t|dx|: %10.3f\t|f(x+)|: %10.4f\n"
+       (printf "k: %05d\ta: %8.5f\t|grad| %10.3f\t|dx|: %10.3f\t|f(x+)|: %14.8f\n"
                k a (nrmi g) (nrm2 (axpy -1 x x+)) (f x+))
        (flush))
      (cond success        (merge options {:sol x+ :f (f x+) :grad g :iterations k :success true :lsmethod lsmethod})
@@ -255,7 +255,7 @@
          y (axpy -1 (grad f x+) (grad f x))
          success (< (nrmi q) tol)]
      (when output
-       (printf "k: %5d\ta: %8.5f\t|q| %10.3f\tp.s: %10.3f\t|f(x+)|: %10.4f\n"
+       (printf "k: %5d\ta: %8.5f\t|q| %10.3f\tp.s: %10.3f\t|f(x+)|: %14.8f\n"
                k a (nrmi q) (dot p s) (f x+))
        (flush))
      (shift-update S (col-vector s))
@@ -293,7 +293,7 @@
          X (dge (dim x) maxiter)]
      (when output
        (print "l-bfgs" options "\n")
-       (print "\t\ta: steplength\ts: step\t\ty: ddf/dx\tq: df/dx\tp: search dirn\n"))
+       (print "\t\ta: steplength\ts: step\tq: df/dx\tp: search dirn\n"))
      (merge (alg-7-5 f (copy x) S Y X 0 linesearch tol maxiter history output) {:lsmethod lsmethod}))))
 
 (defn- booth
