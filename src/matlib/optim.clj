@@ -192,7 +192,7 @@
          x+ (axpy a q x)
          success (< (nrm1 g) tol)]
      (when output
-       (when (= k 0) (print options "\n"))
+       (when (= k 0) (print "gradient-descent" options "\n"))
        (printf "k: %05d\ta: %8.5f\t|grad| %10.3f\t|dx|: %10.3f\t|f(x+)|: %10.4f\n"
                k a (nrmi g) (nrm2 (axpy -1 x x+)) (f x+)))
      (cond success        (merge options {:sol x+ :f (f x+) :grad g :iterations k :success true :lsmethod lsmethod})
@@ -240,16 +240,18 @@
     (scal! 1 r)))
 
 (defn- alg-7-5
-  "Internal L-BFGS solver. See Algorithm 7.5 of [NW-06]."
-  ([f x S Y k linesearch tol maxiter history output]
+  "Internal L-BFGS solver. See Algorithm 7.5 of [NW-06].
+  Falls back to gradient descent if step results in an increase in f(x) as can
+  occur in poorly conditioned problems."
+  ([f x S Y X k linesearch tol maxiter history output]
    (let [q (vctr-grad f x)
          ; search direction, start off downhill
          p (if (= 0 k) (scal -1 q) (alg-7-4 S Y q k))
          a (:sol (linesearch #(f (axpy % p x))))
          x+ (axpy a p x)
+         f_x+ (f x+)
          s (axpy -1 x x+)
          y (axpy -1 (grad f x+) (grad f x))
-         X (dge (dim x) maxiter)
          success (< (nrmi q) tol)]
      (when output
        (printf "k: %5d\ta: %8.5f\t|q| %10.3f\tp.s: %10.3f\t|f(x+)|: %10.4f\n"
@@ -258,9 +260,10 @@
      (shift-update Y (col-vector y))
      (when history
        (shift-update X (col-vector x)))
-     (cond success        (merge {:sol x+ :f (f x+) :iterations k :tol tol :maxiter maxiter :output output :success true} (if history {:X X :S S :Y Y} {}))
-           (> k maxiter)  (merge {:sol x+ :f (f x+) :iterations k :tol tol :maxiter maxiter :output output :success false} (if history {:X X :S S :Y Y} {}))
-           :else          (recur f x+ S Y (inc k) linesearch tol maxiter history output)))))
+     (cond success        (merge {:sol x+ :f f_x+ :iterations k :tol tol :maxiter maxiter :output output :success true} (if history {:X X :S S :Y Y} {}))
+           (> k maxiter)  (merge {:sol x+ :f f_x+ :iterations k :tol tol :maxiter maxiter :output output :success false} (if history {:X X :S S :Y Y} {}))
+           (> f_x+ (f x)) (recur f (:sol (gradient-descent f x :tol tol :maxiter 50 :output output)) S Y X (inc k) linesearch tol maxiter history output)
+           :else          (recur f x+ S Y X (inc k) linesearch tol maxiter history output)))))
         
 (defn l-bfgs
   "L-BFGS, using finite-difference gradient approximation.
@@ -284,11 +287,12 @@
                lsmethod :wolfe}} options
          linesearch (get {:wolfe wolfe :gs golden-section :backtrack backtrack} lsmethod wolfe)
          S (dge (dim x) m)
-         Y (dge (dim x) m)]
+         Y (dge (dim x) m)
+         X (dge (dim x) maxiter)]
      (when output
-       (print options "\n")
+       (print "l-bfgs" options "\n")
        (print "\t\ta: steplength\ts: step\t\ty: ddf/dx\tq: df/dx\tp: search dirn\n"))
-     (merge (alg-7-5 f (copy x) S Y 0 linesearch tol maxiter history output) {:lsmethod lsmethod}))))
+     (merge (alg-7-5 f (copy x) S Y X 0 linesearch tol maxiter history output) {:lsmethod lsmethod}))))
 
 (defn- booth
   "Booth function f: ℝ² -> ℝ, minimum at f(1, 3) = 0."
@@ -327,4 +331,3 @@
    (let [n (Math/sqrt (dim x))
          X (view-ge x n n)]
      (nrm2 (xpy (mm A X) (mm X A) Q)))))
-  

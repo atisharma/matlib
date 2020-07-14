@@ -76,7 +76,7 @@
     [matlib.linalg :refer :all]
     [matlib.state-space]
     [matlib.control :refer [obsv]]
-    [matlib.optim :refer [l-bfgs]]
+    [matlib.optim :refer [l-bfgs gradient-descent]]
     [uncomplicate.neanderthal.real :refer [entry entry!]]
     [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
     [uncomplicate.neanderthal.linalg :refer :all]
@@ -236,7 +236,7 @@
         Gamma_i_pinv (pinv Gamma_i)
         Gamma_i-1_pinv (pinv (obsv A C (- i 1)))
         bd (view-vctr (dge (+ l n) m))
-        opt-result (l-bfgs #(BD-cost % A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i) bd)
+        opt-result (l-bfgs #(BD-cost % A C K Gamma_i Gamma_i_pinv Gamma_i-1_pinv l m n i) bd :output true :m 500)
         sol (:sol opt-result)
         BD-matrix (view-ge sol (+ l n) m)
         B (submatrix BD-matrix n m)
@@ -304,6 +304,7 @@
                  :C C
                  :B B
                  :D D
+                 :BD-converged (:success BD-soln)
                  :i i
                  :order n
                  :scheme :discrete-time
@@ -388,6 +389,7 @@
                  :C C
                  :B B
                  :D D
+                 :BD-converged (:success BD-soln)
                  :spectrum (seq (dia S1))
                  :order n
                  :i i
