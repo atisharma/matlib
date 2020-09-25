@@ -23,6 +23,16 @@ close to LAPACK -- the cockroach of numerical computing -- and Neanderthal's
 syntax made more sense to me.
 
 
+## Finished features
+
+- Various linear algebra functions like pseudo-inverse, kernel, subspace projections etc.
+- (optimisation) L-BFGS, gradient descent and differential evolution
+- (system identification) N4SID first, second (biased), and robust algorithms (untested)
+- Basis state-space representation, discrete-time integration
+- Gramians, Lyapunov equations
+- Some convenience functions
+
+
 ## Installing
 
 TBD
@@ -34,17 +44,7 @@ Pull requests and bug reports are welcome.
 
 The code is written in a style that stays close to the mathematics in the
 referenced papers where possible. This leads to extensive use of `let`.
-
-
-### Finished
-
-- Various linear algebra functions like pseudo-inverse, kernel, subspace projections etc.
-- (optimisation) L-BFGS and gradient descent
-- (system identification) N4SID first, second (biased), and robust algorithms (untested)
-- Basis state-space representation, discrete-time integration
-- Gramians, Lyapunov equations
-- Some convenience functions
-
+The following areas need work:
 
 ### Unfinished
 
