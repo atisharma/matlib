@@ -28,7 +28,7 @@
     [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]
     [uncomplicate.neanderthal.vect-math :as vect-math]
     [uncomplicate.neanderthal.random :as random]
-    [clojure.core.memoize :as memo]))
+    [clojure.core.memoize :as core-memo]))
 
 (def ^:private ip (/ (- (Math/sqrt 5.0) 1.0) 2.0))
 (def ^:private ip2 (/ (- 3.0 (Math/sqrt 5.0)) 2.0))
@@ -309,19 +309,27 @@
   `:CR`       combination rate (0.9)  
   `:F`        differential weight (0.8)
   `:maxiter`  maximum iterations (10000)  
+  `:memo`     memoize calls to `f` (`false`)  
+  `:output`   print progress every iteration (`false`)  
   note:  
   `f` is memoized with a lru cache.  
   Constraints should be handled in `f`.
   "
   ([f x & params]
    (let [xs (if (:NP params) (matlib.de/population x (:NP params)) (matlib.de/population x))
-         {:keys [CR F maxiter scores n] :or {CR 0.9
-                                             F 0.8
-                                             maxiter 10000
-                                             scores (map f xs)
-                                             n 0}} params
-         mem-f (memo/lru f {} :lru/threshold (* 2 (count xs)))]
-     (matlib.de/solve f xs CR F maxiter scores n))))
+         {:keys [memo output CR F maxiter scores n]
+          :or {output false
+               memo false
+               CR 0.9
+               F 0.8
+               maxiter 10000
+               scores (map f xs)
+               n 0}} params
+         objective-fn (if memo (core-memo/lru f {} :lru/threshold (* 2 (count xs))) f)]
+     (when output
+       (print "de" params "\n")
+       (print "\tn:\t\tf(x)\n"))
+     (merge {:memo memo} (matlib.de/solve objective-fn xs CR F maxiter scores n output)))))
 
 (defn- booth
   "Booth function f: ℝ² -> ℝ, minimum at f(1, 3) = 0."

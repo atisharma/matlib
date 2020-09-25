@@ -46,7 +46,7 @@
   "Find the minimum of `f` given a population (vec) of `x`s.
   Constraints should be handled in `f`.
   If evaluations of `f` are expensive, consider memoizing `f` with lru."
-  ([f xs CR F maxiter scores n]
+  ([f xs CR F maxiter scores n output]
    (let [x (first xs)
          ys (shuffle (rest xs))
          a (first ys)
@@ -57,10 +57,14 @@
        ; rotate xs with new one at end
        (let [y (update-individual x a b c CR F)
              fx (f x)
-             fy (f y)
-             new-xs (conj (vec (rest xs)) (if (or (> fy fx) (Double/isNaN fy)) x y))
+             fy-test (f y)
+             fy (if (Double/isNaN fy-test) ##Inf fy-test)
+             new-xs (conj (vec (rest xs)) (if (> fy fx) x y))
              new-scores (conj (vec (rest scores)) (min fx fy))]
-         (recur f new-xs CR F maxiter new-scores (inc n)))
+         (when output
+           (printf "\tn:%5d\t\tf(x):%12.5f\n" n (min fx fy))
+           (flush))
+         (recur f new-xs CR F maxiter new-scores (inc n) output))
        {:sol x
         :f (f x)
         :iterations n
