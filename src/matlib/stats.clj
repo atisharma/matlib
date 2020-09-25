@@ -13,12 +13,12 @@
 (defn row-mean
   "Mean across rows."
   ([M]
-   (scal! (/ 1.0 (mrows M)) (dge (map sum (cols M))))))
+   (scal! (/ 1.0 (mrows M)) (dv (map sum (cols M))))))
 
 (defn col-mean
   "Mean across columns."
   ([M]
-   (scal! (/ 1.0 (ncols M)) (dge (map sum (rows M))))))
+   (scal! (/ 1.0 (ncols M)) (dv (map sum (rows M))))))
 
 (defn subtract-col-mean
   "Subtract the mean over columns from each row."

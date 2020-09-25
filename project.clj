@@ -7,7 +7,7 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(defproject matlib "0.1.8"
+(defproject matlib "0.1.9"
   :description "A Clojure library of optimisation and control theory tools and convenience functions based on Neanderthal."
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
             :url "https://www.eclipse.org/legal/epl-2.0/"}
@@ -17,10 +17,11 @@
   ; jvm-opts required by Neanderthal on JDK > 8.
   :jvm-opts ^:replace ["--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"]
   :dependencies [[org.clojure/clojure "1.10.1"]
-                 [uncomplicate/neanderthal "0.34.0"]
+                 [uncomplicate/neanderthal "0.36.0"]
+                 ;[org.bytedeco/mkl-platform-redist "2020.1-1.5.3"]
                  ; No need to specify slf4j-api, as it’s required by logback.
                  ; These loggers are here mainly to keep Neanderthal quiet.
-                 [org.clojure/tools.logging "0.6.0"]
+                 [org.clojure/tools.logging "1.1.0"]
                  [ch.qos.logback/logback-classic "1.2.3"]]
   ; lein with-env-vars repl
   ; Is this working? Specified in $PATH in .bashrc.

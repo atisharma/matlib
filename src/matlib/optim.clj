@@ -1,6 +1,8 @@
 (ns matlib.optim
   "Various optimisation algorithms.
   L-BFGS and gradient descent are implemented.
+  The gradient is estimated by central finite difference.
+  Differential evolution (gradient-free heuristic optimisation) is implemented.
 
   [NW-06]  
   'Numerical Optimization (second Ed.)'  
@@ -19,12 +21,14 @@
   (:require
     [matlib.core :refer :all]
     [matlib.linalg :refer :all]
+    [matlib.de]
     [uncomplicate.neanderthal.real :refer [entry entry!]]
     [uncomplicate.neanderthal.native :refer :all :exclude [sv]]
     [uncomplicate.neanderthal.linalg :refer :all]
     [uncomplicate.neanderthal.core :refer :all :exclude [entry entry!]]
     [uncomplicate.neanderthal.vect-math :as vect-math]
-    [uncomplicate.neanderthal.random :as random]))
+    [uncomplicate.neanderthal.random :as random]
+    [clojure.core.memoize :as memo]))
 
 (def ^:private ip (/ (- (Math/sqrt 5.0) 1.0) 2.0))
 (def ^:private ip2 (/ (- 3.0 (Math/sqrt 5.0)) 2.0))
@@ -295,6 +299,29 @@
        (print "l-bfgs" options "\n")
        (print "\t\ta: steplength\ts: step\tq: df/dx\tp: search dirn\n"))
      (merge (alg-7-5 f (copy x) S Y X 0 linesearch tol maxiter history output) {:lsmethod lsmethod}))))
+
+(defn de
+  "Differential evolution (a heuristic gradient-free optimisation).
+  Find the minimum of `f: ℝⁿ -> ℝ` given a population of `x`s.
+  `f`   function to be solved, `f: ℝⁿ -> ℝ`.  
+  `x`   initial solution guess (as a vector) from which the population is generated.  
+  options (default):  
+  `:CR`       combination rate (0.9)  
+  `:F`        differential weight (0.8)
+  `:maxiter`  maximum iterations (10000)  
+  note:  
+  `f` is memoized with a lru cache.  
+  Constraints should be handled in `f`.
+  "
+  ([f x & params]
+   (let [xs (if (:NP params) (matlib.de/population x (:NP params)) (matlib.de/population x))
+         {:keys [CR F maxiter scores n] :or {CR 0.9
+                                             F 0.8
+                                             maxiter 10000
+                                             scores (map f xs)
+                                             n 0}} params
+         mem-f (memo/lru f {} :lru/threshold (* 2 (count xs)))]
+     (matlib.de/solve f xs CR F maxiter scores n))))
 
 (defn- booth
   "Booth function f: ℝ² -> ℝ, minimum at f(1, 3) = 0."
