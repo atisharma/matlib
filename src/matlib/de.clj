@@ -58,7 +58,7 @@
        (let [y (update-individual x a b c CR F)
              fx (f x)
              fy (f y)
-             new-xs (conj (vec (rest xs)) (if (> fy fx) x y))
+             new-xs (conj (vec (rest xs)) (if (or (> fy fx) (Double/isNaN fy)) x y))
              new-scores (conj (vec (rest scores)) (min fx fy))]
          (recur f new-xs CR F maxiter new-scores (inc n)))
        {:sol x
